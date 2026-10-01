@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node scripts/set-env.mjs && npm run build",
-  "outputDirectory": "dist/px-web-app/browser",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "angular",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
