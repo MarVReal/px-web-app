@@ -30,7 +30,7 @@ import { Modal } from '../../shared/components/modal';
       <px-modal title="New pipeline" (closed)="show.set(false)">
         <div class="modal-body stack">
           <label class="field">Team<select [value]="teamId()" (change)="teamId.set($any($event.target).value)">
-            @for (t of manageable(); track t.id) { <option [value]="t.id">{{ t.name }}</option> }</select></label>
+            @for (t of manageable(); track t.id) { <option [value]="t.id" [selected]="t.id === teamId()">{{ t.name }}</option> }</select></label>
           <label class="field">Name<input [value]="name()" (input)="name.set($any($event.target).value)" placeholder="e.g. Monthly Data Quality Activities" /></label>
           <label class="field">Description<textarea [value]="desc()" (input)="desc.set($any($event.target).value)"></textarea></label>
           <p class="muted small">Starts with Backlog → Planning → In Progress → For Review → Completed. You can customize stages on the board.</p>

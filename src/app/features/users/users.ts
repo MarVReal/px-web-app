@@ -20,7 +20,7 @@ import { Modal } from '../../shared/components/modal';
             <tr><td><div class="row"><px-avatar [name]="m.profile.full_name || m.profile.email" [size]="30" />
               <div>{{ m.profile.full_name }}<div class="muted small">{{ m.profile.email }}</div></div></div></td>
               <td><select style="width: auto" [value]="m.role" [disabled]="m.user_id === auth.userId()" (change)="setRole(m, $any($event.target).value)">
-                @for (r of roles; track r) { <option [value]="r">{{ label[r] }}</option> }</select></td>
+                @for (r of roles; track r) { <option [value]="r" [selected]="r === m.role">{{ label[r] }}</option> }</select></td>
               <td>{{ m.position_title || '—' }}</td>
               <td><span class="badge" [class.ok]="m.is_active" [class.bad]="!m.is_active">{{ m.is_active ? 'Active' : 'Deactivated' }}</span></td>
               <td class="right">@if (m.user_id !== auth.userId()) {
@@ -47,9 +47,9 @@ import { Modal } from '../../shared/components/modal';
           <div class="modal-body stack">
             <label class="field">Email<input type="email" [value]="email()" (input)="email.set($any($event.target).value)" /></label>
             <label class="field">Role<select [value]="role()" (change)="role.set($any($event.target).value)">
-              @for (r of roles; track r) { <option [value]="r">{{ label[r] }}</option> }</select></label>
+              @for (r of roles; track r) { <option [value]="r" [selected]="r === role()">{{ label[r] }}</option> }</select></label>
             <label class="field">Team<select [value]="teamId()" (change)="teamId.set($any($event.target).value)">
-              <option value="">— None —</option>@for (t of teams(); track t.id) { <option [value]="t.id">{{ t.name }}</option> }</select></label>
+              <option value="" [selected]="!teamId()">— None —</option>@for (t of teams(); track t.id) { <option [value]="t.id" [selected]="t.id === teamId()">{{ t.name }}</option> }</select></label>
             <label class="field">Position / title (optional)<input [value]="position()" (input)="position.set($any($event.target).value)" /></label>
           </div>
           <div class="modal-foot"><button class="btn" (click)="closeInvite()">Cancel</button>

@@ -55,7 +55,7 @@ import { Modal } from '../../shared/components/modal';
         <div class="modal-body stack">
           <label class="field">Name<input [value]="tName()" (input)="tName.set($any($event.target).value)" /></label>
           <label class="field">Division<select [value]="tDiv()" (change)="tDiv.set($any($event.target).value)">
-            <option value="">— None —</option>@for (d of divisions(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }</select></label>
+            <option value="" [selected]="!tDiv()">— None —</option>@for (d of divisions(); track d.id) { <option [value]="d.id" [selected]="d.id === tDiv()">{{ d.name }}</option> }</select></label>
           <label class="field">Description<textarea [value]="tDesc()" (input)="tDesc.set($any($event.target).value)"></textarea></label>
         </div>
         <div class="modal-foot"><button class="btn" (click)="teamModal.set(false)">Cancel</button>
