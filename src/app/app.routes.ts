@@ -1,7 +1,8 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, onboardingGuard, roleGuard } from './core/guards/guards';
+import { authGuard, guestGuard, landingGuard, onboardingGuard, roleGuard } from './core/guards/guards';
 
 export const routes: Routes = [
+  { path: '', pathMatch: 'full', canActivate: [landingGuard], loadComponent: () => import('./features/landing/landing').then((m) => m.Landing) },
   { path: 'login', canActivate: [guestGuard], loadComponent: () => import('./features/auth/auth.pages').then((m) => m.Login) },
   { path: 'register', canActivate: [guestGuard], loadComponent: () => import('./features/auth/auth.pages').then((m) => m.Register) },
   { path: 'forgot-password', loadComponent: () => import('./features/auth/auth.pages').then((m) => m.ForgotPassword) },

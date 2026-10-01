@@ -12,6 +12,14 @@ export const authGuard: CanActivateFn = async () => {
   return true;
 };
 
+/** Landing page: visitors see it, signed-in users go straight into the app. */
+export const landingGuard: CanActivateFn = async () => {
+  const auth = inject(AuthService), router = inject(Router);
+  await auth.init();
+  if (!auth.isAuthenticated()) return true;
+  return router.createUrlTree([auth.membership() ? '/dashboard' : '/onboarding']);
+};
+
 /** Login/register pages: bounce signed-in users into the app. */
 export const guestGuard: CanActivateFn = async () => {
   const auth = inject(AuthService), router = inject(Router);

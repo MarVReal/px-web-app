@@ -1,0 +1,393 @@
+<header class="lp-nav">
+  <div class="lp-wrap lp-nav-in">
+    <a class="lp-logo" routerLink="/" aria-label="Project-X home">
+      <svg class="lp-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#2f54eb" /><path d="M10.5 10.5l11 11M21.5 10.5l-11 11" stroke="#fff" stroke-width="3.2" stroke-linecap="round" /></svg>
+      <span>Project-X</span>
+    </a>
+    <nav class="lp-links" aria-label="Main">
+      <a href="#how" (click)="go($event, 'how')">How it works</a>
+      <a href="#features" (click)="go($event, 'features')">Features</a>
+      <a href="#roles" (click)="go($event, 'roles')">Roles</a>
+      <a href="#trust" (click)="go($event, 'trust')">Security</a>
+    </nav>
+    <span class="lp-grow"></span>
+    <a class="lp-signin" routerLink="/login">Sign in</a>
+    <a class="lp-btn lp-btn-primary" routerLink="/register">Create account</a>
+  </div>
+</header>
+
+<main>
+  <!-- Hero -->
+  <section class="lp-hero">
+    <div class="lp-wrap lp-hero-in">
+      <div class="lp-hero-copy">
+        <h1>Move work across the board. The report writes itself.</h1>
+        <p class="lp-lead">Project-X is a task board for teams and their section heads. Create a pipeline, assign tasks, drag them to done, then export the accomplishment report as PDF, Excel or CSV.</p>
+        <div class="lp-cta">
+          <a class="lp-btn lp-btn-primary lp-btn-lg" routerLink="/register">Create account</a>
+          <a class="lp-btn lp-btn-quiet lp-btn-lg" href="#how" (click)="go($event, 'how')">See how it works</a>
+        </div>
+        <p class="lp-fine">Already have an account? <a routerLink="/login">Sign in</a></p>
+      </div>
+
+      <div class="lp-art" role="img" aria-label="A task board where the card Compile October figures is dragged from In progress to Done, and the accomplishment report updates to 18 of 22 tasks completed.">
+        <div class="lp-glow"></div>
+        <div class="lp-mock" aria-hidden="true">
+          <div class="lp-board">
+            <div class="lp-board-head">
+              <div><strong>Monthly outreach</strong><small>Data Team</small></div>
+              <div class="lp-avs"><span class="lp-av" style="--c:#2f54eb">AR</span><span class="lp-av" style="--c:#7a5af8">MD</span><span class="lp-av" style="--c:#0e9384">JC</span></div>
+            </div>
+            <div class="lp-cols">
+              <div class="lp-col">
+                <div class="lp-col-head" style="--stage:#98a2b3">To do</div>
+                <div class="lp-task"><p>Prepare site visit schedule</p>
+                  <div class="lp-meta"><span class="lp-pill lp-p-medium">Medium</span><span class="lp-tag" style="--c:#2f54eb">Site</span><span class="lp-av" style="--c:#2f54eb">AR</span></div></div>
+                <div class="lp-task"><p>Update beneficiary list</p>
+                  <div class="lp-meta"><span class="lp-pill lp-p-high">High</span><span class="lp-tag" style="--c:#12b76a">Data</span><span class="lp-av" style="--c:#0e9384">JC</span></div></div>
+              </div>
+              <div class="lp-col">
+                <div class="lp-col-head" style="--stage:#2f54eb">In progress</div>
+                <div class="lp-task"><p>Draft partner memo</p>
+                  <div class="lp-meta"><span class="lp-pill lp-p-urgent">Urgent</span><span class="lp-tag" style="--c:#667085">Docs</span><span class="lp-av" style="--c:#7a5af8">MD</span></div></div>
+                <div class="lp-slot lp-slot-from"></div>
+              </div>
+              <div class="lp-col">
+                <div class="lp-col-head" style="--stage:#079455">Done</div>
+                <div class="lp-task"><p>Send venue request</p>
+                  <div class="lp-meta"><span class="lp-pill lp-p-low">Low</span><span class="lp-tag" style="--c:#f79009">Venue</span><span class="lp-av" style="--c:#2f54eb">AR</span></div></div>
+                <div class="lp-slot lp-slot-to"></div>
+              </div>
+            </div>
+            <div class="lp-task lp-drag"><p>Compile October figures</p>
+              <div class="lp-meta"><span class="lp-pill lp-p-high">High</span><span class="lp-tag" style="--c:#7a5af8">Reports</span><span class="lp-av" style="--c:#0e9384">JC</span></div></div>
+          </div>
+
+          <div class="lp-float lp-float-note">
+            <span class="lp-av lp-av-md" style="--c:#0e9384">JC</span>
+            <span><b>New task assigned</b><small>Compile October figures</small></span>
+          </div>
+          <div class="lp-float lp-float-report">
+            <b>Accomplishment report</b>
+            <small>Oct 1 to Oct 31</small>
+            <div class="lp-bar"><i></i></div>
+            <div class="lp-count"><span class="lp-count-a">17 of 22 tasks completed</span><span class="lp-count-b">18 of 22 tasks completed</span></div>
+            <div class="lp-exports"><span>PDF</span><span>Excel</span><span>CSV</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Facts -->
+  <section class="lp-facts" aria-label="At a glance">
+    <ul class="lp-wrap lp-facts-in">
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><circle cx="17" cy="9" r="2.6" /><path d="M17.5 14c2.4.2 4.5 1.9 4.5 4.6" /></svg>
+        <span><b>Three roles</b>Admin, Section Head and Staff each see their own work.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></svg>
+        <span><b>Reports for any dates</b>Export to PDF, Excel or CSV.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 8l9 6 9-6" /></svg>
+        <span><b>Invitation only</b>Single-use links that expire after 7 days.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" /><path d="M12 7v5l3 2" /></svg>
+        <span><b>Every change recorded</b>An activity trail on each task.</span>
+      </li>
+    </ul>
+  </section>
+
+  <!-- How it works -->
+  <section id="how" class="lp-sec">
+    <div class="lp-wrap">
+      <div class="lp-sec-head">
+        <h2>One workspace for the whole month of work</h2>
+        <p>Set up your people, plan the tasks, move them to done, and hand in a report that matches what really happened.</p>
+      </div>
+
+      <div class="lp-tabs" role="tablist" aria-label="From setup to report">
+        @for (t of tabs; track t.key; let i = $index) {
+          <button type="button" role="tab" class="lp-tab" [id]="'lp-tab-' + t.key"
+            [attr.aria-selected]="active() === t.key" [attr.aria-controls]="'lp-panel-' + t.key"
+            [attr.tabindex]="active() === t.key ? 0 : -1"
+            (click)="active.set(t.key)" (keydown)="onTabKey($event, i)">{{ t.label }}</button>
+        }
+      </div>
+
+      @switch (active()) {
+        @case ('organize') {
+          <div class="lp-panel" role="tabpanel" id="lp-panel-organize" aria-labelledby="lp-tab-organize">
+            <div class="lp-panel-copy">
+              <h3>Bring your people in, with the right access</h3>
+              <p>Create divisions and teams, then invite people by link. Each person joins as Admin, Section Head or Staff, and you can deactivate anyone later.</p>
+              <ul class="lp-checks"><li>Divisions and teams</li><li>Invitation links</li><li>Role-based access</li></ul>
+            </div>
+            <div class="lp-frame">
+              <div class="lp-ui">
+                <div class="lp-ui-head"><strong>Users</strong><span class="lp-mini-btn">Invite user</span></div>
+                <ul class="lp-rows">
+                  <li><span class="lp-av lp-av-lg" style="--c:#2f54eb">AR</span><span class="lp-who"><b>Ana Reyes</b><small>Program officer</small></span><span class="lp-role lp-role-admin">Admin</span></li>
+                  <li><span class="lp-av lp-av-lg" style="--c:#7a5af8">MD</span><span class="lp-who"><b>Marco Dela Cruz</b><small>Data team lead</small></span><span class="lp-role lp-role-head">Section Head</span></li>
+                  <li><span class="lp-av lp-av-lg" style="--c:#0e9384">JC</span><span class="lp-who"><b>Jo Cruz</b><small>Data analyst</small></span><span class="lp-role lp-role-staff">Staff</span></li>
+                </ul>
+              </div>
+              <div class="lp-ui lp-ui-invite">
+                <b>Invitation created</b>
+                <span class="lp-link-box">https://your-workspace/invite/4f1c9a7e</span>
+                <small>Single use. Expires in 7 days.</small>
+              </div>
+            </div>
+          </div>
+        }
+        @case ('plan') {
+          <div class="lp-panel" role="tabpanel" id="lp-panel-plan" aria-labelledby="lp-tab-plan">
+            <div class="lp-panel-copy">
+              <h3>Break the work into tasks people can act on</h3>
+              <p>Build a pipeline with your own stages. Each task carries a priority, category, tags, dates, estimated hours and links to the documents you already keep elsewhere.</p>
+              <ul class="lp-checks"><li>Custom stages</li><li>Priority from Low to Urgent</li><li>Categories and tags</li><li>Links to documents</li></ul>
+            </div>
+            <div class="lp-frame">
+              <div class="lp-ui">
+                <div class="lp-ui-head"><strong>Compile October figures</strong></div>
+                <dl class="lp-fields">
+                  <div><dt>Stage</dt><dd>In progress</dd></div>
+                  <div><dt>Priority</dt><dd><span class="lp-pill lp-p-urgent">Urgent</span></dd></div>
+                  <div><dt>Category</dt><dd><span class="lp-tag" style="--c:#7a5af8">Reports</span></dd></div>
+                  <div><dt>Tags</dt><dd><span class="lp-tag" style="--c:#12b76a">Data</span> <span class="lp-tag" style="--c:#2f54eb">Monthly</span></dd></div>
+                  <div><dt>Due date</dt><dd>Oct 31</dd></div>
+                  <div><dt>Estimated effort</dt><dd>6 hours</dd></div>
+                  <div class="lp-wide"><dt>Links</dt><dd class="lp-linkline">October source files, shared drive</dd></div>
+                </dl>
+              </div>
+            </div>
+          </div>
+        }
+        @case ('deliver') {
+          <div class="lp-panel" role="tabpanel" id="lp-panel-deliver" aria-labelledby="lp-tab-deliver">
+            <div class="lp-panel-copy">
+              <h3>Drag work forward and keep everyone in the loop</h3>
+              <p>Move cards between stages, assign teammates, comment on tasks and follow the activity log. People are notified when a task is assigned to them or they are mentioned.</p>
+              <ul class="lp-checks"><li>Drag-and-drop board</li><li>Assignments and mentions</li><li>Comments</li><li>Activity log</li></ul>
+            </div>
+            <div class="lp-frame">
+              <div class="lp-ui">
+                <div class="lp-minicols">
+                  <div><b style="--stage:#98a2b3">To do</b><span>Prepare site visit schedule</span><span>Update beneficiary list</span></div>
+                  <div><b style="--stage:#2f54eb">In progress</b><span>Draft partner memo</span></div>
+                  <div><b style="--stage:#079455">Done</b><span>Send venue request</span><span>Compile October figures</span></div>
+                </div>
+              </div>
+              <div class="lp-ui lp-feed">
+                <ul>
+                  <li><span class="lp-av lp-av-md" style="--c:#0e9384">JC</span><span><b>Jo Cruz</b> moved <i>Compile October figures</i> to Done<small>2 minutes ago</small></span></li>
+                  <li><span class="lp-av lp-av-md" style="--c:#7a5af8">MD</span><span><b>Marco Dela Cruz</b> commented on <i>Draft partner memo</i><small>1 hour ago</small></span></li>
+                  <li><span class="lp-av lp-av-md" style="--c:#2f54eb">AR</span><span><b>Ana Reyes</b> assigned <i>Update beneficiary list</i> to Jo Cruz<small>Yesterday</small></span></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        }
+        @case ('report') {
+          <div class="lp-panel" role="tabpanel" id="lp-panel-report" aria-labelledby="lp-tab-report">
+            <div class="lp-panel-copy">
+              <h3>Turn finished work into the accomplishment report</h3>
+              <p>Pick any date range, from day 1 to day x, for a team or one person. Completed, delayed and carried-over tasks are marked for you, ready to export.</p>
+              <ul class="lp-checks"><li>Any date range</li><li>By team or by employee</li><li>PDF, Excel and CSV</li></ul>
+            </div>
+            <div class="lp-frame">
+              <div class="lp-ui">
+                <div class="lp-ui-head"><strong>Accomplishment report</strong><small>Data Team, Oct 1 to Oct 31</small></div>
+                <div class="lp-stats">
+                  <div><b>22</b><span>Total</span></div>
+                  <div><b>18</b><span>Completed</span></div>
+                  <div><b>3</b><span>In progress</span></div>
+                  <div><b>1</b><span>Pending</span></div>
+                </div>
+                <div class="lp-tw">
+                  <table class="lp-table">
+                    <thead><tr><th>Task</th><th>Assignee</th><th>Status</th><th>Remarks</th></tr></thead>
+                    <tbody>
+                      <tr><td>Compile October figures</td><td>Jo Cruz</td><td>Completed</td><td>None</td></tr>
+                      <tr><td>Draft partner memo</td><td>Marco D.</td><td>In progress</td><td><span class="lp-flag">Delayed</span></td></tr>
+                      <tr><td>Update beneficiary list</td><td>Ana R.</td><td>Completed</td><td><span class="lp-flag lp-flag-info">Carried over</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="lp-export"><span>Download PDF</span><span>Download Excel</span><span>Download CSV</span></div>
+              </div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="lp-sec">
+    <div class="lp-wrap">
+      <div class="lp-sec-head">
+        <h2>Shape the board around how your office works</h2>
+        <p>Your pipeline, your stages, your labels. Nothing is fixed except the report at the end.</p>
+      </div>
+      <div class="lp-bento">
+        <article class="lp-tile lp-tile-a">
+          <div>
+            <h3>Design your own task card</h3>
+            <p>Choose which of 16 fields appear on each card and arrange them in full or half-width rows. The preview updates as you drag.</p>
+          </div>
+          <div class="lp-designer" aria-hidden="true">
+            <div class="lp-palette">
+              <span>Title</span><span>Assignee</span><span>Priority</span><span>Category</span><span>Tags</span><span>Due date</span><span>Effort</span><span>Links</span>
+            </div>
+            <div class="lp-preview">
+              <div class="lp-prow"><b>Compile October figures</b></div>
+              <div class="lp-prow lp-prow-2"><span class="lp-pill lp-p-urgent">Urgent</span><span class="lp-dim">Due Oct 31</span></div>
+              <div class="lp-prow"><span class="lp-tag" style="--c:#7a5af8">Reports</span> <span class="lp-tag" style="--c:#12b76a">Data</span></div>
+              <div class="lp-prow lp-prow-2"><span class="lp-who-s"><span class="lp-av" style="--c:#0e9384">JC</span>Jo Cruz</span><span class="lp-dim">6 hours</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="lp-tile lp-tile-b">
+          <div>
+            <h3>Categories and tags in any colour</h3>
+            <p>Pick any hex colour, or let Project-X randomize one. Label text switches between dark and white so it stays readable.</p>
+          </div>
+          <div class="lp-swatches" aria-hidden="true">
+            <span style="background:#7a5af8;color:#fff">Review</span>
+            <span style="background:#fdb022;color:#1d2939">Field work</span>
+            <span style="background:#0e9384;color:#fff">Finance</span>
+            <span style="background:#f670c7;color:#1d2939">Outreach</span>
+            <span style="background:#344054;color:#fff">Legal</span>
+            <div class="lp-hex"><i style="background:#7a5af8"></i>#7a5af8<em>Randomize</em></div>
+          </div>
+        </article>
+
+        <article class="lp-tile lp-tile-c">
+          <div>
+            <h3>Links, not uploads</h3>
+            <p>Attach links to the documents your team already keeps in shared drives, so there is one copy of every file.</p>
+          </div>
+          <ul class="lp-links-list" aria-hidden="true">
+            <li><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1" /></svg><span>Beneficiary list<small>shared drive</small></span></li>
+            <li><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1" /></svg><span>Venue request form<small>shared drive</small></span></li>
+          </ul>
+        </article>
+
+        <article class="lp-tile lp-tile-d">
+          <div>
+            <h3>Stages that mean something</h3>
+            <p>Name your stages and mark each as backlog, active, review or done. A card moved into a done stage is completed and counted in the report.</p>
+          </div>
+          <ol class="lp-flow" aria-label="Stage kinds in order">
+            <li style="--k:#98a2b3"><b>Backlog</b><small>Not started</small></li>
+            <li style="--k:#2f54eb"><b>Active</b><small>Being worked on</small></li>
+            <li style="--k:#b54708"><b>Review</b><small>Waiting for sign-off</small></li>
+            <li style="--k:#079455"><b>Done</b><small>Completed and counted in the report</small></li>
+          </ol>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Roles -->
+  <section id="roles" class="lp-sec">
+    <div class="lp-wrap">
+      <div class="lp-sec-head">
+        <h2>Everyone sees the work that is theirs</h2>
+        <p>Access follows the role, so people get what they need and nothing more.</p>
+      </div>
+      <div class="lp-roles">
+        <div>
+          <h3>Admin</h3>
+          <p class="lp-role-line">Runs the organization.</p>
+          <ul class="lp-checks">
+            <li>Invite, deactivate and change the role of users</li>
+            <li>Create divisions, teams and pipelines</li>
+            <li>Change organization settings</li>
+            <li>Read every report</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Section Head</h3>
+          <p class="lp-role-line">Leads a team.</p>
+          <ul class="lp-checks">
+            <li>Manage pipelines for the team</li>
+            <li>Set up categories, tags and the task card</li>
+            <li>Assign work and keep tasks moving</li>
+            <li>Report on the team and its members</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Staff</h3>
+          <p class="lp-role-line">Gets the work done.</p>
+          <ul class="lp-checks">
+            <li>See assigned tasks in one list</li>
+            <li>Update tasks and move them forward</li>
+            <li>Comment and add links</li>
+            <li>See their own accomplishment report</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust -->
+  <section id="trust" class="lp-sec">
+    <div class="lp-wrap">
+      <div class="lp-sec-head">
+        <h2>Built so your data stays yours</h2>
+        <p>Access is checked by the database itself, not only hidden in the interface.</p>
+      </div>
+      <div class="lp-duo">
+        <article class="lp-panel-card">
+          <h3>Separate by organization</h3>
+          <p>Every organization's tasks, people and reports are isolated by row-level access rules in the database. One organization cannot read another's data.</p>
+          <div class="lp-orgs" aria-hidden="true">
+            <div><b>Your organization</b><i></i><i></i><i></i></div>
+            <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+            <div class="lp-org-other"><b>Another organization</b><i></i><i></i><i></i></div>
+          </div>
+        </article>
+        <article class="lp-panel-card">
+          <h3>Access by invitation</h3>
+          <p>Invitations are single use, tied to one email address and expire after 7 days. Deactivate anyone to end their access straight away.</p>
+          <div class="lp-ticket" aria-hidden="true">
+            <span>lea&#64;agency.example</span>
+            <span class="lp-role lp-role-staff">Staff</span>
+            <small>Single use. Expires in 7 days.</small>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Closing call to action -->
+  <section class="lp-wrap lp-final">
+    <div class="lp-band">
+      <h2>Give your team one board and your section head one report</h2>
+      <p>Create an account, set up your organization and build your first pipeline.</p>
+      <div class="lp-cta lp-cta-center">
+        <a class="lp-btn lp-btn-white lp-btn-lg" routerLink="/register">Create account</a>
+        <a class="lp-btn lp-btn-outline lp-btn-lg" routerLink="/login">Sign in</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="lp-foot">
+  <div class="lp-wrap lp-foot-in">
+    <a class="lp-logo lp-logo-sm" routerLink="/" aria-label="Project-X home">
+      <svg class="lp-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#2f54eb" /><path d="M10.5 10.5l11 11M21.5 10.5l-11 11" stroke="#fff" stroke-width="3.2" stroke-linecap="round" /></svg>
+      <span>Project-X</span>
+    </a>
+    <span class="lp-grow"></span>
+    <a routerLink="/login">Sign in</a>
+    <a routerLink="/register">Create account</a>
+    <small>&copy; {{ year }} Project-X</small>
+  </div>
+</footer>
