@@ -1,0 +1,204 @@
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { AuthService } from '../../core/auth/auth.service';
+import { Division, Member, MonthlyReport, ReportSummary, Team } from '../../core/models/models';
+import { OrgService } from '../../core/services/org.service';
+import { ReportDoc, ReportService } from '../../core/services/report.service';
+import { ToastService } from '../../core/services/toast.service';
+import { exportCsv, exportPdf, exportXlsx } from '../../shared/utils/export';
+import { isoDate, rangeLabel } from '../../shared/utils/format';
+
+type Kind = 'individual' | 'team' | 'organization';
+interface Section { teamId: string; team: string; summary: ReportSummary; narrative: string; }
+
+const sum = (list: ReportSummary[]): ReportSummary => {
+  const total = list.reduce((n, s) => n + s.total, 0), completed = list.reduce((n, s) => n + s.completed, 0);
+  return {
+    period_start: list[0]?.period_start ?? '', total, completed,
+    in_progress: list.reduce((n, s) => n + s.in_progress, 0), pending: list.reduce((n, s) => n + s.pending, 0),
+    carried_over: list.reduce((n, s) => n + s.carried_over, 0), delayed: list.reduce((n, s) => n + s.delayed, 0),
+    completion_rate: total ? Math.round((1000 * completed) / total) / 10 : 0,
+    effort_hours: list.reduce((n, s) => n + s.effort_hours, 0), tasks: list.flatMap((s) => s.tasks),
+  };
+};
+
+const today = () => new Date();
+const monthStart = (offset = 0) => new Date(today().getFullYear(), today().getMonth() + offset, 1);
+const monthEnd = (offset = 0) => new Date(today().getFullYear(), today().getMonth() + offset + 1, 0);
+
+@Component({
+  selector: 'px-reports',
+  template: `
+    <div class="page">
+      <div class="page-head"><h1>Accomplishment Reports</h1></div>
+      <div class="card">
+        <div class="row wrap">
+          <label class="field">Report type<select (change)="kind.set($any($event.target).value); reset()">
+            <option value="individual">Individual</option>
+            @if (auth.role() !== 'staff') { <option value="team">Team</option> }
+            @if (auth.isAdmin()) { <option value="organization">Organization (compile teams)</option> }</select></label>
+          <label class="field">From<input type="date" [value]="from()" [max]="to()" (change)="from.set($any($event.target).value); reset()" /></label>
+          <label class="field">To<input type="date" [value]="to()" [min]="from()" (change)="to.set($any($event.target).value); reset()" /></label>
+          @if (kind() === 'team') {
+            <label class="field">Team<select (change)="teamId.set($any($event.target).value); reset()">
+              <option value="">Select…</option>@for (t of teams(); track t.id) { <option [value]="t.id" [selected]="t.id === teamId()">{{ t.name }}</option> }</select></label> }
+          @if (kind() === 'individual' && auth.role() !== 'staff') {
+            <label class="field">Staff<select (change)="userId.set($any($event.target).value); reset()">
+              @for (m of members(); track m.user_id) { <option [value]="m.user_id" [selected]="m.user_id === userId()">{{ m.profile.full_name || m.profile.email }}</option> }</select></label> }
+          @if (kind() === 'organization') {
+            <div class="field">Teams to include<div class="row wrap">
+              @for (t of teams(); track t.id) { <label class="row" style="font-weight:450"><input type="checkbox" style="width:auto" [checked]="picked().has(t.id)" (change)="pick(t.id)" /> {{ t.name }}</label> }</div></div> }
+          <span class="spacer"></span>
+          <button class="btn primary" (click)="generate()" [disabled]="busy() || !ready()">{{ busy() ? 'Generating…' : 'Generate preview' }}</button>
+        </div>
+        <div class="row wrap" style="margin-top: 10px">
+          <span class="muted small">Quick range:</span>
+          @for (p of presets; track p.label) { <button class="btn sm" (click)="preset(p)">{{ p.label }}</button> }
+          <span class="spacer"></span><span class="small"><b>{{ label() }}</b></span>
+        </div>
+        @if (!validRange()) { <div class="err" style="margin-top: 8px">"To" must be on or after "From" (maximum range: one year).</div> }
+      </div>
+
+      @if (summary(); as s) {
+        <div class="card" style="margin-top: 16px">
+          <div class="row"><h2>{{ docTitle() }} — {{ label() }}</h2><span class="spacer"></span><span class="badge">{{ sections().length ? 'Compiled' : 'Preview' }}</span></div>
+          <div class="grid cols-4" style="margin: 14px 0">
+            <div class="stat"><div class="num">{{ s.total }}</div><div class="lbl">Total</div></div>
+            <div class="stat"><div class="num">{{ s.completed }}</div><div class="lbl">Completed</div></div>
+            <div class="stat"><div class="num">{{ s.in_progress }}</div><div class="lbl">In progress</div></div>
+            <div class="stat"><div class="num">{{ s.pending }}</div><div class="lbl">Pending</div></div>
+            <div class="stat"><div class="num">{{ s.carried_over }}</div><div class="lbl">Carried over</div></div>
+            <div class="stat"><div class="num">{{ s.delayed }}</div><div class="lbl">Delayed</div></div>
+            <div class="stat"><div class="num">{{ s.completion_rate }}%</div><div class="lbl">Completion</div></div>
+          </div>
+
+          @if (sections().length) {
+            @for (sec of sections(); track sec.teamId; let i = $index) {
+              <h3>{{ sec.team }} <span class="muted small">({{ sec.summary.completed }}/{{ sec.summary.total }} completed)</span></h3>
+              <textarea style="min-height: 110px; margin: 6px 0 14px" [value]="sec.narrative" (input)="setSectionNarrative(i, $any($event.target).value)"></textarea>
+            }
+            <label class="field">Consolidated organization summary<textarea style="min-height: 120px" [value]="narrative()" (input)="narrative.set($any($event.target).value)"></textarea></label>
+          } @else {
+            <label class="field">Accomplishment narrative (edit before finalizing)<textarea style="min-height: 150px" [value]="narrative()" (input)="narrative.set($any($event.target).value)"></textarea></label>
+          }
+
+          <h3 style="margin: 16px 0 6px">Task details</h3>
+          <div class="table-wrap card flush"><table class="tbl"><thead><tr><th>Task</th><th>Assignee</th><th>Status</th><th>Date completed</th><th>Remarks</th></tr></thead><tbody>
+            @for (t of s.tasks; track t.id) {
+              <tr><td>{{ t.title }}</td><td>{{ t.assignees || '—' }}</td><td><span class="badge" [class.ok]="t.status === 'completed'">{{ t.status.replace('_', ' ') }}</span></td>
+                <td>{{ t.completed_on || '—' }}</td><td class="small">{{ t.delayed ? 'Delayed ' : '' }}{{ t.carried_over ? 'Carried over' : '' }}</td></tr>
+            } @empty { <tr><td colspan="5" class="muted">No tasks in this period.</td></tr> }</tbody></table></div>
+
+          <div class="row wrap" style="margin-top: 16px">
+            <button class="btn" (click)="save('draft')">Save draft</button>
+            <button class="btn primary" (click)="save('final')">Finalize</button><span class="spacer"></span>
+            <button class="btn" (click)="exp('pdf')">PDF</button><button class="btn" (click)="exp('xlsx')">Excel</button><button class="btn" (click)="exp('csv')">CSV</button>
+          </div>
+        </div>
+      }
+
+      <h2 style="margin: 24px 0 10px">Saved reports</h2>
+      <div class="card flush table-wrap"><table class="tbl"><thead><tr><th>Period</th><th>Type</th><th>Scope</th><th>Status</th><th>Completion</th></tr></thead><tbody>
+        @for (r of saved(); track r.id) {
+          <tr><td>{{ range(r) }}</td><td>{{ r.scope }}</td><td>{{ scopeName(r) }}</td>
+            <td><span class="badge" [class.ok]="r.status === 'final'">{{ r.status }}</span></td><td>{{ $any(r.summary).completion_rate ?? 0 }}%</td></tr>
+        } @empty { <tr><td colspan="5" class="muted">Nothing saved yet.</td></tr> }</tbody></table></div>
+    </div>`,
+})
+export class Reports implements OnInit {
+  protected auth = inject(AuthService);
+  private svc = inject(ReportService);
+  private org = inject(OrgService);
+  private toast = inject(ToastService);
+
+  kind = signal<Kind>('individual');
+  from = signal(isoDate(monthStart())); to = signal(isoDate(today()));
+  teamId = signal(''); userId = signal('');
+  teams = signal<Team[]>([]); members = signal<Member[]>([]); divisions = signal<Division[]>([]); saved = signal<MonthlyReport[]>([]);
+  picked = signal<Set<string>>(new Set());
+  summary = signal<ReportSummary | null>(null); narrative = signal(''); sections = signal<Section[]>([]);
+  busy = signal(false);
+
+  presets = [
+    { label: 'This month', from: () => monthStart(), to: () => monthEnd() },
+    { label: 'Last month', from: () => monthStart(-1), to: () => monthEnd(-1) },
+    { label: '1st – 15th', from: () => monthStart(), to: () => new Date(today().getFullYear(), today().getMonth(), 15) },
+    { label: '16th – end of month', from: () => new Date(today().getFullYear(), today().getMonth(), 16), to: () => monthEnd() },
+    { label: 'Last 7 days', from: () => new Date(Date.now() - 6 * 864e5), to: () => today() },
+    { label: 'Last 30 days', from: () => new Date(Date.now() - 29 * 864e5), to: () => today() },
+  ];
+
+  label = computed(() => rangeLabel(this.from(), this.to()));
+  validRange = computed(() => !!this.from() && !!this.to() && this.to() >= this.from()
+    && (new Date(this.to()).getTime() - new Date(this.from()).getTime()) / 864e5 <= 366);
+  docTitle = computed(() => ({ individual: 'Individual Accomplishment Report', team: 'Team Accomplishment Report', organization: 'Organization Accomplishment Report' })[this.kind()]);
+  ready = computed(() => this.validRange() && (this.kind() === 'team' ? !!this.teamId() : this.kind() === 'organization' ? this.picked().size > 0 : !!this.userId()));
+  range = (r: MonthlyReport) => rangeLabel(r.period_start, r.period_end);
+  scopeName = (r: MonthlyReport) => r.scope === 'team' ? this.teams().find((t) => t.id === r.team_id)?.name ?? 'Team'
+    : r.scope === 'individual' ? this.members().find((m) => m.user_id === r.subject_user_id)?.profile.full_name ?? 'Me' : this.auth.organization()?.name ?? '';
+
+  async ngOnInit() {
+    this.userId.set(this.auth.userId()!);
+    try {
+      const [t, d, s] = await Promise.all([this.org.listTeams(), this.org.listDivisions(), this.svc.list()]);
+      this.teams.set(t); this.divisions.set(d); this.saved.set(s);
+      if (this.auth.role() !== 'staff') this.members.set(await this.org.listMembers());
+      if (this.auth.role() === 'section_head') this.teamId.set(t[0]?.id ?? '');
+    } catch (e) { this.toast.error(e); }
+  }
+
+  preset(p: { from: () => Date; to: () => Date }) { this.from.set(isoDate(p.from())); this.to.set(isoDate(p.to())); this.reset(); }
+  reset() { this.summary.set(null); this.sections.set([]); this.narrative.set(''); }
+  pick(id: string) { this.picked.update((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); this.reset(); }
+  setSectionNarrative(i: number, v: string) { this.sections.update((l) => l.map((s, j) => (j === i ? { ...s, narrative: v } : s))); }
+
+  async generate() {
+    this.busy.set(true); this.reset();
+    try {
+      const from = this.from(), to = this.to(), lbl = this.label();
+      if (this.kind() === 'organization') {
+        const secs: Section[] = [];
+        for (const t of this.teams().filter((x) => this.picked().has(x.id))) {
+          const summary = await this.svc.summary('team', from, to, t.id);
+          secs.push({ teamId: t.id, team: t.name, summary, narrative: this.svc.draftNarrative(t.name, lbl, summary) });
+        }
+        const total = sum(secs.map((s) => s.summary));
+        this.sections.set(secs); this.summary.set(total);
+        this.narrative.set(this.svc.draftNarrative(this.auth.organization()!.name, lbl, total));
+      } else {
+        const s = await this.svc.summary(this.kind(), from, to, this.teamId(), this.userId());
+        this.summary.set(s);
+        const who = this.kind() === 'team' ? this.teams().find((t) => t.id === this.teamId())?.name ?? 'Team'
+          : this.members().find((x) => x.user_id === this.userId())?.profile.full_name ?? this.auth.profile()?.full_name ?? 'Me';
+        this.narrative.set(this.svc.draftNarrative(who, lbl, s));
+      }
+    } catch (e) { this.toast.error(e); } finally { this.busy.set(false); }
+  }
+
+  private doc(): ReportDoc {
+    const team = this.teams().find((t) => t.id === this.teamId());
+    return {
+      title: this.docTitle(), organization: this.auth.organization()!.name, period: this.label(),
+      division: team ? this.divisions().find((d) => d.id === team.division_id)?.name : undefined,
+      team: this.kind() === 'team' ? team?.name : undefined,
+      subject: this.kind() === 'individual' ? (this.members().find((x) => x.user_id === this.userId())?.profile.full_name ?? this.auth.profile()?.full_name) : undefined,
+      summary: this.summary()!, narrative: this.narrative(),
+      sections: this.sections().length ? this.sections().map((s) => ({ team: s.team, summary: s.summary, narrative: s.narrative })) : undefined,
+    };
+  }
+
+  async save(status: 'draft' | 'final') {
+    try {
+      const narrative = this.sections().length
+        ? this.sections().map((s) => `${s.team}\n${s.narrative}`).join('\n\n') + '\n\n' + this.narrative() : this.narrative();
+      await this.svc.save({ scope: this.kind(), team_id: this.kind() === 'team' ? this.teamId() : null,
+        subject_user_id: this.kind() === 'individual' ? this.userId() : null, from: this.from(), to: this.to(), narrative, summary: this.summary()!, status });
+      this.saved.set(await this.svc.list());
+      this.toast.success(status === 'final' ? 'Report finalized' : 'Draft saved');
+    } catch (e) { this.toast.error(e); }
+  }
+
+  async exp(f: 'pdf' | 'xlsx' | 'csv') {
+    try { const d = this.doc(); if (f === 'pdf') await exportPdf(d); else if (f === 'xlsx') await exportXlsx(d); else exportCsv(d); }
+    catch (e) { this.toast.error(e); }
+  }
+}

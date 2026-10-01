@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "targets": {
+    "/pipelines/:id": {
+      "targetKind": "existing-ui",
+      "projectId": "19ea0439-c123-4e82-a2b5-ac68e8de793b",
+      "baselineDraftId": "86d6e147-0491-4d32-ae2d-3c1f32f860bc",
+      "activeDraftId": "125bb509-b348-4009-9d00-e064146401d7",
+      "designSystemPath": ".superdesign/design-system.md",
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "src/app/layout/shell.ts",
+        "src/app/features/pipelines/kanban.ts",
+        "src/app/shared/components/avatar.ts",
+        "src/app/shared/components/modal.ts",
+        "src/app/shared/utils/label-colors.ts",
+        "src/styles.scss"
+      ],
+      "fingerprints": {
+        ".superdesign/design-system.md": "49dd6c03ab6bb2534091d27394f0924e7aeb64b75a7a35774c878edb0027be65",
+        "src/app/layout/shell.ts": "9c10d50ec981c1d62f58895d3e93141652ae6fde20cc83f4ee348ae733b7f364",
+        "src/app/features/pipelines/kanban.ts": "058246ca70ca6a2ad80b74c0caaa395e170d679c10988f746cd59c00c74eccce",
+        "src/app/shared/components/avatar.ts": "cf804ac417350ba741b5d2e94427966be1420719da8f3493766adca10f77fed4",
+        "src/app/shared/components/modal.ts": "f7138133184832785639ce3573d4ad8e7605c2a55cc18c04c5db798698d7c779",
+        "src/app/shared/utils/label-colors.ts": "06d8a1f57af76c664a4268cff6e76400972ed6d633b368b973e7be9dc39e0e9f",
+        "src/styles.scss": "6212f32c9e5412d19deb7625524b83e954590afcff85384663c371805434b53d"
+      },
+      "components": [],
+      "drafts": {
+        "86d6e147-0491-4d32-ae2d-3c1f32f860bc": {
+          "title": "Current Kanban board (baseline reproduction)",
+          "visualDirection": "current UI, no changes",
+          "currentVersion": 1
+        },
+        "125bb509-b348-4009-9d00-e064146401d7": {
+          "title": "Kanban - Calm & Scannable (Direction A)",
+          "visualDirection": "calmer cards, one meta line, priority dot, stage-coloured column tops, grouped filter bar, Board settings button",
+          "parentDraftId": "86d6e147-0491-4d32-ae2d-3c1f32f860bc",
+          "currentVersion": 1,
+          "implemented": true
+        },
+        "59fbd101-b389-41dd-8eb3-a07fc680d873": {
+          "title": "Kanban - Overview First (Direction B)",
+          "visualDirection": "summary stat strip, quick filter chips, board/list toggle, priority edge on cards, hover quick actions",
+          "parentDraftId": "86d6e147-0491-4d32-ae2d-3c1f32f860bc",
+          "currentVersion": 1
+        }
+      },
+      "updatedAt": "2026-10-01T14:42:06.629Z"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "buildCommand": "node scripts/set-env.mjs && npm run build",
+  "outputDirectory": "dist/px-web-app/browser",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
