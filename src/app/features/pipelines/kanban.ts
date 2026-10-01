@@ -118,8 +118,10 @@ type Field = 'priority' | 'category' | 'tags';
       </px-modal>
     }`,
   styles: `
-    .wrap { padding: 16px 20px; }
-    .head { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+    /* The board fills the screen below the top bar (58px), so every stage column runs the full height and
+       any empty space in it is a drop target. Columns scroll on their own when they hold many cards. */
+    .wrap { display: flex; flex-direction: column; height: calc(100vh - 58px); min-height: 460px; padding: 16px 20px; }
+    .head { flex: none; display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
     .head-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
     .filter-bar { align-self: flex-start; display: inline-flex; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; max-width: 100%; flex-wrap: wrap; }
     .filter-bar select, .filter-bar input { border: 0; background: transparent; padding: 5px 8px; font-size: 13px; width: auto; outline: none; &:focus { outline: 0; box-shadow: none; } }
@@ -129,12 +131,14 @@ type Field = 'priority' | 'category' | 'tags';
     .menu-backdrop { position: fixed; inset: 0; z-index: 40; }
     .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
       button, a { text-align: left; border: 0; background: none; padding: 8px 12px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; &:hover { background: var(--surface-2); } } }
-    .board { display: flex; gap: 12px; align-items: flex-start; overflow-x: auto; padding-bottom: 16px; }
-    .col { background: #eceff3; border-radius: 12px; flex: 1 1 280px; min-width: 260px; max-width: 340px; padding: 0 8px 8px; border-top: 3px solid #98a2b3;
+    .board { display: flex; gap: 12px; align-items: stretch; flex: 1; min-height: 0; overflow-x: auto; padding-bottom: 4px; }
+    .col { display: flex; flex-direction: column; min-height: 0; background: #eceff3; border-radius: 12px; flex: 1 1 280px; min-width: 260px; max-width: 340px; padding: 0 8px 8px; border-top: 3px solid #98a2b3;
       &.active { border-top-color: #2e90fa; } &.review { border-top-color: #f79009; } &.done { border-top-color: var(--success); } }
-    .col header { display: flex; align-items: center; gap: 8px; padding: 10px 4px; }
+    .col header { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 4px; }
     .count { background: #d0d5dd; border-radius: 999px; padding: 0 8px; font-size: 12px; font-weight: 500; color: #475467; }
-    .list { display: flex; flex-direction: column; gap: 8px; min-height: 50px; }
+    /* The list is the drop zone: it stretches to the bottom of the column. The small negative margin and padding
+       keep card shadows from being clipped by the scrolling edge. */
+    .list { display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 50px; overflow-y: auto; margin: 0 -4px; padding: 2px 4px 8px; }
     .task { position: relative; cursor: grab; border: 1px solid transparent; transition: border-color .15s, box-shadow .15s;
       &:hover { border-color: var(--border); box-shadow: 0 4px 6px -1px rgba(16, 24, 40, .06), 0 2px 4px -2px rgba(16, 24, 40, .06); } }
     /* position: fixed so the scrolling board and columns can never clip it; the place is set from the clicked chip. */

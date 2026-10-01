@@ -235,7 +235,8 @@ export class Reports implements OnInit {
         this.sections.set(secs); this.summary.set(total);
         this.narrative.set(this.svc.draftNarrative(this.auth.organization()!.name, lbl, total));
       } else {
-        const s = await this.svc.summary(this.kind(), from, to, this.teamId(), this.userId());
+        const kind = this.kind();
+        const s = await this.svc.summary(kind, from, to, kind === 'team' ? this.teamId() : undefined, kind === 'individual' ? this.userId() : undefined);
         this.summary.set(s);
         const who = this.kind() === 'team' ? this.teams().find((t) => t.id === this.teamId())?.name ?? 'Team'
           : this.members().find((x) => x.user_id === this.userId())?.profile.full_name ?? this.auth.profile()?.full_name ?? 'Me';

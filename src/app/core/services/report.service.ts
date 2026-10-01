@@ -42,7 +42,8 @@ export class ReportService {
 
   async summary(scope: 'individual' | 'team' | 'organization', from: string, to: string, teamId?: string, userId?: string): Promise<ReportSummary> {
     return unwrap(await this.sb.rpc('report_summary', {
-      p_scope: scope, p_team: teamId ?? null, p_user: userId ?? null, p_from: from, p_to: to,
+      // `||` rather than `??`: an unset dropdown is '' and the database cannot read '' as an id.
+      p_scope: scope, p_team: teamId || null, p_user: userId || null, p_from: from, p_to: to,
     })) as ReportSummary;
   }
 
