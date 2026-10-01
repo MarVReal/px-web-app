@@ -14,7 +14,7 @@ import { Modal } from '../../shared/components/modal';
     <div class="page">
       <div class="page-head"><h1>Users</h1><span class="spacer"></span><button class="btn primary" (click)="show.set(true)">+ Invite user</button></div>
       <div class="card flush table-wrap"><table class="tbl">
-        <thead><tr><th>User</th><th>Role</th><th>Position</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>User</th><th>Role</th><th>Position</th><th>Telegram</th><th>Status</th><th></th></tr></thead>
         <tbody>
           @for (m of members(); track m.id) {
             <tr><td><div class="row"><px-avatar [name]="m.profile.full_name || m.profile.email" [size]="30" />
@@ -22,6 +22,7 @@ import { Modal } from '../../shared/components/modal';
               <td><select style="width: auto" [value]="m.role" [disabled]="m.user_id === auth.userId()" (change)="setRole(m, $any($event.target).value)">
                 @for (r of roles; track r) { <option [value]="r" [selected]="r === m.role">{{ label[r] }}</option> }</select></td>
               <td>{{ m.position_title || '—' }}</td>
+              <td>{{ m.profile.telegram_username ? '@' + m.profile.telegram_username : '—' }}</td>
               <td><span class="badge" [class.ok]="m.is_active" [class.bad]="!m.is_active">{{ m.is_active ? 'Active' : 'Deactivated' }}</span></td>
               <td class="right">@if (m.user_id !== auth.userId()) {
                 <button class="btn sm" (click)="toggleActive(m)">{{ m.is_active ? 'Deactivate' : 'Reactivate' }}</button> }</td></tr>

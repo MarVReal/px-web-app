@@ -2,11 +2,11 @@ import { DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
+import { loadBrandFont } from '../../shared/brand-font';
 
 type TabKey = 'organize' | 'plan' | 'deliver' | 'report';
 
 const PAGE_TITLE = 'Project-X | Task boards and accomplishment reports for teams';
-const FONT_URL = 'https://fonts.googleapis.com/css2?family=Figtree:wght@500;600;700;800&display=swap';
 
 @Component({
   selector: 'px-landing',
@@ -35,7 +35,7 @@ export class Landing {
       content: 'Project-X is a task board for teams and section heads. Assign tasks, drag them to done and export the accomplishment report as PDF, Excel or CSV.',
     });
     inject(DestroyRef).onDestroy(() => title.setTitle(previous));
-    this.loadFont();
+    loadBrandFont(this.doc);
   }
 
   /** Scrolls to a section without touching the URL, so the route guard does not run again. */
@@ -56,15 +56,5 @@ export class Landing {
     ev.preventDefault();
     this.active.set(this.tabs[next].key);
     this.doc.getElementById('lp-tab-' + this.tabs[next].key)?.focus();
-  }
-
-  /** Only the landing page uses Figtree, so it is requested here rather than for the whole app. */
-  private loadFont() {
-    if (this.doc.getElementById('px-landing-font')) return;
-    const link = this.doc.createElement('link');
-    link.id = 'px-landing-font';
-    link.rel = 'stylesheet';
-    link.href = FONT_URL;
-    this.doc.head.appendChild(link);
   }
 }

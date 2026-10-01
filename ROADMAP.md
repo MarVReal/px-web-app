@@ -1,6 +1,6 @@
 # Project-X — Roadmap & Status
 
-Last updated: 2026-10-01. Repos: `px-web-app` (Angular frontend, Vercel) · `px-web-api` (Supabase SQL: migrations + dev seed). Backend is **Supabase only** (no Express).
+Last updated: 2026-10-02. Repos: `px-web-app` (Angular frontend, Vercel) · `px-web-api` (Supabase SQL: migrations + dev seed). Backend is **Supabase only** (no Express).
 
 Legend: ✅ done · 🟡 partial · ⬜ not started
 
@@ -13,6 +13,8 @@ Legend: ✅ done · 🟡 partial · ⬜ not started
 - ✅ Invitations: single-use, 7-day expiry, email-bound, accept flow (`/invite/:token`)
 - ✅ Row Level Security on every table; org id derived server-side; last-admin guard
 - 🟡 Email verification: works if enabled in Supabase Auth; default Supabase mailer is rate-limited (needs custom SMTP for production)
+- ✅ **Profile page** (everyone, sidebar → Profile): name, role, organization, optional **Telegram username** (saved lowercase without `@`, 5–32 characters, checked in the app and by a database constraint; visible to people in the same organization; shown to admins on the Users page)
+- ✅ **Landing page** at `/` for signed-out visitors and redesigned **sign-in / create account / reset / invitation pages** sharing one layout
 - ⬜ Invitation **emails** (links are copy-and-share today) → Supabase Edge Function
 - ⬜ Edit/delete division UI; permanently remove a user (only deactivate today)
 - ⬜ Google / Microsoft login (postponed by decision)
@@ -65,6 +67,20 @@ Legend: ✅ done · 🟡 partial · ⬜ not started
 5. **Data tracking:** add `ai_generated`, `ai_model` and `ai_prompt_version` to `monthly_reports` so AI drafts are traceable.
 6. **Privacy:** task titles and descriptions leave the system and go to Google. Before sending real agency data, check Google's current data-use terms for the free and paid Gemini API tiers, and tell users the report is AI-assisted.
 
+## Future: Telegram notifications — noted 2026-10-02, not started
+
+**Goal:** a Telegram bot messages a section head when a task needs to be moved (exact triggers still to be decided, for example a task that has reached Review, or one that has sat in a stage past its due date).
+
+**Already in place:** every profile can store a Telegram username (Profile page, `profiles.telegram_username`). It is **unverified** and only a label.
+
+**Design notes (decide before building):**
+1. **A bot cannot message a username.** It can only message a numeric chat id, and only after that person has started the bot. The username is therefore not enough to send anything.
+2. **Linking flow:** Profile gets a "Connect Telegram" button that opens `t.me/<bot>?start=<one-time code>`. The bot's webhook (a Supabase Edge Function) checks the code, then stores `telegram_chat_id` and `telegram_verified_at` on the profile. Only verified users receive messages. Add those two columns at that point.
+3. **Who gets told:** the section head of the task's team (`team_members.is_head`). Reuse the existing `notifications` table: when a notification row is created for a user with a verified chat id, an Edge Function sends the Telegram message. Add a per-user opt-out.
+4. **The bot token is a secret.** Keep it in a Supabase secret (`supabase secrets set TELEGRAM_BOT_TOKEN=...`), never in the repo or the frontend (both repos are public).
+5. **Message content:** keep it short (task title, team, what needs doing, a link to the board) and avoid sensitive details, since Telegram messages live outside the system.
+6. **Needs a scheduler** for "past due in a stage" style triggers: `generate_due_notifications()` exists but is not scheduled yet (pg_cron or a scheduled Edge Function).
+
 ## Phase 5 — Analytics, audit, advanced permissions, SaaS
 - ✅ Role-specific dashboards (admin / section head / staff), charts, filters
 - 🟡 Dashboard aggregates client-side from up to 5,000 task rows → move to SQL views/RPC when data grows
@@ -76,19 +92,21 @@ Legend: ✅ done · 🟡 partial · ⬜ not started
 ## Known issues / risks
 1. **UI retest (2026-10-01, as Admin):** all modals, task dialog (typing, hours, category, tags, stage move, links, comments, delete), stage editor, labels page, all sidebar pages and report preview verified in the browser with 0 failed requests. Still untested: Section Head and Staff sessions, PDF/Excel/CSV download, invite acceptance in a second browser.
    Bugs found and fixed during the retest: modal backdrop cancelled mouse focus in every modal (inputs unclickable); card popover inputs blocked by drag; comments could not be posted (trigger bug); report "delayed" over-counted; updating teams / divisions / members / reports failed (trigger bug, fixed with the date-range migration).
-2. **Demo users with a weak password exist in the live Supabase project** (`admin@demo.com`, `sectionhead@demo.com`, `staff1@demo.com`, `staff2@demo.com`, password `Demo1234!`). **Both GitHub repos are public and `px-web-api/supabase/seed.sql` contains that password**, so anyone can sign in as the demo admin. Delete the demo users and the Demo Organization before real use.
-3. **Leaked-password protection is off** (Supabase dashboard → Auth).
-4. No automated tests (frontend or SQL). The RLS test script used during development should be saved into `px-web-api/supabase/tests/`.
-5. Staff can see all tasks of their own team (per spec "according to permissions"); stricter per-task privacy would need a `visibility` column.
-6. Staff can only move/edit tasks they created or are assigned to (by design).
+2. ✅ **Resolved 2026-10-02:** the four demo users (`@demo.com`, password `Demo1234!`) and the Demo Organization were deleted from the live project. **Walang Gutom Program is the single demo organization.** Both GitHub repos are public and `seed.sql` still contains that password for local development, so never run the seed against a hosted project (the file now says so).
+3. **Leaked-password protection is off** (Supabase dashboard → Authentication → Password security). The dashboard is the only place to change it.
+4. **The Supabase organization is on the Free plan.** Free projects pause after about a week of low activity and have no downloadable backups, so upgrade to Pro before real agency data goes in.
+5. Database hardening done 2026-10-02 (`20261001173405_px_harden_and_speed_up_policies.sql`): `report_summary` is no longer callable by signed-out visitors, 14 row-level-security rules evaluate `auth.uid()` once per query, six catch-all write policies are split so each read runs one policy, and 24 foreign-key indexes were added. Before/after visibility and write-permission checks for admin, section head and staff gave identical results. The remaining advisor warnings are intentional (`get_invitation_preview` must work before sign-in; the helper functions are used by the access rules).
+6. No automated tests (frontend or SQL). The before/after method used on 2026-10-02 (row counts per role plus a rolled-back write matrix for admin, section head and staff) should be turned into a saved test script in `px-web-api/supabase/tests/`.
+7. Staff can see all tasks of their own team (per spec "according to permissions"); stricter per-task privacy would need a `visibility` column.
+8. Staff can only move/edit tasks they created or are assigned to (by design).
 
 ## Deployment checklist
 - [x] Supabase schema applied; migration history matches `px-web-api/supabase/migrations` 1:1; `config.toml` added
 - [x] Frontend builds (`npm run build`), `vercel.json` (SPA rewrite + output dir) ready
-- [ ] Re-authenticate the Vercel connector (project `project-x` exists but is not readable yet)
-- [ ] Push both repos to GitHub (`MarVReal/px-web-app`, `MarVReal/px-web-api`)
-- [ ] Vercel: import `px-web-app`; env vars `SUPABASE_URL`, `SUPABASE_ANON_KEY` (publishable key only)
-- [ ] Supabase → Auth → URL Configuration: Site URL = Vercel URL; add `https://<vercel-domain>/**` and `http://localhost:4200/**` to Redirect URLs
-- [ ] Supabase → Auth: enable email confirmation + leaked-password protection; configure custom SMTP
-- [ ] Remove demo users / demo organization
+- [x] Vercel connector re-authenticated; both repos pushed to GitHub (`MarVReal/px-web-app`, `MarVReal/px-web-api`)
+- [x] Vercel project `px-web-app` deployed from `main` (env vars `SUPABASE_URL`, `SUPABASE_ANON_KEY`; Vercel Authentication off; `@angular/build` pinned to 21.2.3 because 21.2.24 never exits)
+- [ ] Supabase → Auth → URL Configuration: Site URL = `https://px-web-app-marvreals-projects.vercel.app` (or the shorter `https://px-web-app.vercel.app`); add `<site>/**` and `http://localhost:4200/**` to Redirect URLs
+- [ ] Supabase → Auth: leaked-password protection; custom SMTP (the built-in sender is rate-limited)
+- [x] Remove demo users / demo organization (done 2026-10-02)
+- [ ] Upgrade the Supabase organization from Free to Pro before real data
 - [ ] Smoke test production: register → create org → team → pipeline → task → drag → report export

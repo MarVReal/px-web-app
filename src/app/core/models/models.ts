@@ -2,7 +2,7 @@ export type Role = 'admin' | 'section_head' | 'staff';
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type StageKind = 'backlog' | 'active' | 'review' | 'done';
 
-export interface Profile { id: string; email: string; full_name: string; avatar_url: string | null; }
+export interface Profile { id: string; email: string; full_name: string; avatar_url: string | null; telegram_username?: string | null; }
 
 export interface Organization {
   id: string; name: string; logo_url: string | null; description: string | null; industry: string | null;

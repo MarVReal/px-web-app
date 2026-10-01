@@ -2,38 +2,42 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
+import { Role, ROLE_LABEL } from '../../core/models/models';
 import { OrgService } from '../../core/services/org.service';
+import { AuthShell } from './auth-shell';
 
-const AUTH_STYLES = `
-  .wrap { min-height: 100vh; display: grid; place-items: center; padding: 16px; background: linear-gradient(160deg, #101828, #1d2939 60%, #2f54eb); }
-  .box { width: 100%; max-width: 400px; background: var(--surface); border-radius: 16px; padding: 28px; box-shadow: var(--shadow-lg); }
-  .logo { font-weight: 700; letter-spacing: .08em; margin-bottom: 4px; b { color: var(--primary); } }
-  form { display: flex; flex-direction: column; gap: 14px; margin-top: 16px; }
-`;
+const roleName = (r: string) => ROLE_LABEL[r as Role] ?? r;
 
 @Component({
   selector: 'px-login',
-  imports: [ReactiveFormsModule, RouterLink],
-  styles: AUTH_STYLES,
+  imports: [ReactiveFormsModule, RouterLink, AuthShell],
   template: `
-    <div class="wrap"><div class="box">
-      <div class="logo">PROJECT<b>-X</b></div><h1>Sign in</h1>
-      <form [formGroup]="f" (ngSubmit)="submit()">
-        <label class="field">Email<input type="email" formControlName="email" autocomplete="email" /></label>
-        <label class="field">Password<input type="password" formControlName="password" autocomplete="current-password" /></label>
-        @if (error()) { <div class="alert error">{{ error() }}</div> }
-        @if (info()) { <div class="alert ok">{{ info() }}</div> }
-        <button class="btn primary" [disabled]="f.invalid || busy()">{{ busy() ? 'Signing in…' : 'Sign in' }}</button>
+    <px-auth-shell title="Welcome back" subtitle="Sign in to your Project-X workspace.">
+      <form class="au-form" [formGroup]="f" (ngSubmit)="submit()">
+        <div class="au-field">
+          <label for="login-email">Email</label>
+          <input id="login-email" class="au-input" type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div class="au-field">
+          <div class="au-label-row"><label for="login-password">Password</label><a class="au-link" routerLink="/forgot-password">Forgot password?</a></div>
+          <span class="au-pass">
+            <input id="login-password" class="au-input" [type]="show() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" />
+            <button type="button" class="au-eye" (click)="show.set(!show())" [attr.aria-pressed]="show()">{{ show() ? 'Hide' : 'Show' }}</button>
+          </span>
+        </div>
+        @if (error()) { <div class="au-alert au-alert-error" role="alert">{{ error() }}</div> }
+        @if (info()) { <div class="au-alert au-alert-ok" role="status">{{ info() }}</div> }
+        <button class="au-btn" [disabled]="f.invalid || busy()">{{ busy() ? 'Signing in…' : 'Sign in' }}</button>
       </form>
-      <p class="small"><a routerLink="/forgot-password">Forgot password?</a> · <a routerLink="/register" [queryParams]="invite ? { invite } : {}">Create account</a></p>
-    </div></div>`,
+      <p authAlt>New to Project-X? <a class="au-link" routerLink="/register" [queryParams]="invite ? { invite } : {}">Create account</a></p>
+    </px-auth-shell>`,
 })
 export class Login {
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   f = inject(FormBuilder).nonNullable.group({ email: ['', [Validators.required, Validators.email]], password: ['', Validators.required] });
-  busy = signal(false); error = signal(''); info = signal('');
+  busy = signal(false); error = signal(''); info = signal(''); show = signal(false);
   invite = this.route.snapshot.queryParamMap.get('invite');
 
   constructor() {
@@ -52,34 +56,48 @@ export class Login {
 
 @Component({
   selector: 'px-register',
-  imports: [ReactiveFormsModule, RouterLink],
-  styles: AUTH_STYLES,
+  imports: [ReactiveFormsModule, RouterLink, AuthShell],
   template: `
-    <div class="wrap"><div class="box">
-      <div class="logo">PROJECT<b>-X</b></div><h1>{{ preview() ? 'Join ' + preview()!.organization_name : 'Create your account' }}</h1>
-      @if (preview(); as p) { <p class="muted small">You were invited as {{ p.role }}{{ p.team_name ? ' in ' + p.team_name : '' }}. Use {{ p.email }}.</p> }
-      <form [formGroup]="f" (ngSubmit)="submit()">
-        <label class="field">Full name<input formControlName="name" autocomplete="name" /></label>
-        <label class="field">Email<input type="email" formControlName="email" autocomplete="email" /></label>
-        <label class="field">Password<input type="password" formControlName="password" autocomplete="new-password" />
-          @if (f.controls.password.touched && f.controls.password.invalid) { <span class="err">At least 8 characters.</span> }</label>
-        @if (error()) { <div class="alert error">{{ error() }}</div> }
-        <button class="btn primary" [disabled]="f.invalid || busy()">{{ busy() ? 'Creating…' : 'Create account' }}</button>
+    <px-auth-shell [title]="preview() ? 'Join ' + preview()!.organization_name : 'Create your account'"
+      [subtitle]="preview() ? '' : 'Set up your Project-X login in a minute.'">
+      @if (preview(); as p) {
+        <p class="au-note">You were invited as <b>{{ roleName(p.role) }}</b>{{ p.team_name ? ' in ' + p.team_name : '' }}. Use <b>{{ p.email }}</b> to sign up.</p>
+      }
+      <form class="au-form" [formGroup]="f" (ngSubmit)="submit()">
+        <div class="au-field">
+          <label for="reg-name">Full name</label>
+          <input id="reg-name" class="au-input" formControlName="name" autocomplete="name" />
+        </div>
+        <div class="au-field">
+          <label for="reg-email">Email</label>
+          <input id="reg-email" class="au-input" type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+        <div class="au-field">
+          <label for="reg-password">Password</label>
+          <span class="au-pass">
+            <input id="reg-password" class="au-input" [type]="show() ? 'text' : 'password'" formControlName="password" autocomplete="new-password" />
+            <button type="button" class="au-eye" (click)="show.set(!show())" [attr.aria-pressed]="show()">{{ show() ? 'Hide' : 'Show' }}</button>
+          </span>
+          <span class="au-hint" [class.au-hint-bad]="f.controls.password.touched && f.controls.password.invalid">At least 8 characters.</span>
+        </div>
+        @if (error()) { <div class="au-alert au-alert-error" role="alert">{{ error() }}</div> }
+        <button class="au-btn" [disabled]="f.invalid || busy()">{{ busy() ? 'Creating…' : 'Create account' }}</button>
       </form>
-      <p class="small">Already registered? <a routerLink="/login" [queryParams]="invite ? { invite } : {}">Sign in</a></p>
-    </div></div>`,
+      <p authAlt>Already registered? <a class="au-link" routerLink="/login" [queryParams]="invite ? { invite } : {}">Sign in</a></p>
+    </px-auth-shell>`,
 })
 export class Register implements OnInit {
   private auth = inject(AuthService);
   private org = inject(OrgService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  protected roleName = roleName;
   f = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(100)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
   });
-  busy = signal(false); error = signal('');
+  busy = signal(false); error = signal(''); show = signal(false);
   invite = this.route.snapshot.queryParamMap.get('invite');
   preview = signal<Awaited<ReturnType<OrgService['previewInvitation']>>>(null);
 
@@ -107,17 +125,20 @@ export class Register implements OnInit {
 
 @Component({
   selector: 'px-forgot',
-  imports: [ReactiveFormsModule, RouterLink],
-  styles: AUTH_STYLES,
+  imports: [ReactiveFormsModule, RouterLink, AuthShell],
   template: `
-    <div class="wrap"><div class="box"><h1>Reset password</h1>
-      <form [formGroup]="f" (ngSubmit)="submit()">
-        <label class="field">Email<input type="email" formControlName="email" /></label>
-        @if (error()) { <div class="alert error">{{ error() }}</div> }
-        @if (sent()) { <div class="alert ok">If that account exists, a reset link is on its way.</div> }
-        <button class="btn primary" [disabled]="f.invalid">Send reset link</button>
+    <px-auth-shell title="Reset your password" subtitle="Enter your email and we will send you a link to choose a new one.">
+      <form class="au-form" [formGroup]="f" (ngSubmit)="submit()">
+        <div class="au-field">
+          <label for="forgot-email">Email</label>
+          <input id="forgot-email" class="au-input" type="email" formControlName="email" autocomplete="email" placeholder="you@example.com" />
+        </div>
+        @if (error()) { <div class="au-alert au-alert-error" role="alert">{{ error() }}</div> }
+        @if (sent()) { <div class="au-alert au-alert-ok" role="status">If that account exists, a reset link is on its way.</div> }
+        <button class="au-btn" [disabled]="f.invalid">Send reset link</button>
       </form>
-      <p class="small"><a routerLink="/login">Back to sign in</a></p></div></div>`,
+      <p authAlt><a class="au-link" routerLink="/login">Back to sign in</a></p>
+    </px-auth-shell>`,
 })
 export class ForgotPassword {
   private auth = inject(AuthService);
@@ -131,21 +152,27 @@ export class ForgotPassword {
 
 @Component({
   selector: 'px-reset',
-  imports: [ReactiveFormsModule],
-  styles: AUTH_STYLES,
+  imports: [ReactiveFormsModule, AuthShell],
   template: `
-    <div class="wrap"><div class="box"><h1>Choose a new password</h1>
-      <form [formGroup]="f" (ngSubmit)="submit()">
-        <label class="field">New password<input type="password" formControlName="password" autocomplete="new-password" /></label>
-        @if (error()) { <div class="alert error">{{ error() }}</div> }
-        <button class="btn primary" [disabled]="f.invalid">Update password</button>
-      </form></div></div>`,
+    <px-auth-shell title="Choose a new password" subtitle="Use at least 8 characters.">
+      <form class="au-form" [formGroup]="f" (ngSubmit)="submit()">
+        <div class="au-field">
+          <label for="reset-password">New password</label>
+          <span class="au-pass">
+            <input id="reset-password" class="au-input" [type]="show() ? 'text' : 'password'" formControlName="password" autocomplete="new-password" />
+            <button type="button" class="au-eye" (click)="show.set(!show())" [attr.aria-pressed]="show()">{{ show() ? 'Hide' : 'Show' }}</button>
+          </span>
+        </div>
+        @if (error()) { <div class="au-alert au-alert-error" role="alert">{{ error() }}</div> }
+        <button class="au-btn" [disabled]="f.invalid">Update password</button>
+      </form>
+    </px-auth-shell>`,
 })
 export class ResetPassword {
   private auth = inject(AuthService);
   private router = inject(Router);
   f = inject(FormBuilder).nonNullable.group({ password: ['', [Validators.required, Validators.minLength(8)]] });
-  error = signal('');
+  error = signal(''); show = signal(false);
   async submit() {
     try { await this.auth.updatePassword(this.f.getRawValue().password); await this.router.navigateByUrl('/'); }
     catch (e) { this.error.set((e as Error).message); }
@@ -155,24 +182,23 @@ export class ResetPassword {
 /** /invite/:token — previews the invitation and routes the invitee to sign up / sign in; accepts if already signed in. */
 @Component({
   selector: 'px-accept-invite',
-  imports: [RouterLink],
-  styles: AUTH_STYLES,
+  imports: [RouterLink, AuthShell],
   template: `
-    <div class="wrap"><div class="box">
-      @if (loading()) { <p>Loading invitation…</p> }
-      @else if (!p() || !p()!.valid) { <h1>Invitation unavailable</h1><p class="muted">This invitation is invalid, expired, or has already been used.</p><a routerLink="/login">Go to sign in</a> }
-      @else {
-        <h1>Join {{ p()!.organization_name }}</h1>
-        <p class="muted">Invited as <b>{{ p()!.role }}</b>{{ p()!.team_name ? ' in ' + p()!.team_name : '' }} ({{ p()!.email }}).</p>
-        @if (auth.isAuthenticated()) {
-          @if (error()) { <div class="alert error">{{ error() }}</div> }
-          <button class="btn primary" (click)="accept()">Accept invitation</button>
+    <px-auth-shell [title]="title()" [subtitle]="subtitle()">
+      @if (!loading()) {
+        @if (!p() || !p()!.valid) {
+          <div class="au-actions"><a class="au-btn" routerLink="/login">Go to sign in</a></div>
+        } @else if (auth.isAuthenticated()) {
+          @if (error()) { <div class="au-alert au-alert-error" role="alert">{{ error() }}</div> }
+          <div class="au-actions"><button class="au-btn" (click)="accept()">Accept invitation</button></div>
         } @else {
-          <div class="row"><a class="btn primary" routerLink="/register" [queryParams]="{ invite: token }">Create account</a>
-            <a class="btn" routerLink="/login" [queryParams]="{ invite: token }">I have an account</a></div>
+          <div class="au-actions">
+            <a class="au-btn" routerLink="/register" [queryParams]="{ invite: token }">Create account</a>
+            <a class="au-btn au-btn-line" routerLink="/login" [queryParams]="{ invite: token }">I already have an account</a>
+          </div>
         }
       }
-    </div></div>`,
+    </px-auth-shell>`,
 })
 export class AcceptInvite implements OnInit {
   protected auth = inject(AuthService);
@@ -181,6 +207,18 @@ export class AcceptInvite implements OnInit {
   token = inject(ActivatedRoute).snapshot.paramMap.get('token')!;
   loading = signal(true); error = signal('');
   p = signal<Awaited<ReturnType<OrgService['previewInvitation']>>>(null);
+
+  title() {
+    if (this.loading()) return 'Checking your invitation';
+    const p = this.p();
+    return p?.valid ? 'Join ' + p.organization_name : 'Invitation unavailable';
+  }
+  subtitle() {
+    if (this.loading()) return 'One moment…';
+    const p = this.p();
+    if (!p?.valid) return 'This invitation is invalid, expired, or has already been used.';
+    return `You were invited as ${roleName(p.role)}${p.team_name ? ' in ' + p.team_name : ''} (${p.email}).`;
+  }
 
   async ngOnInit() {
     await this.auth.init();

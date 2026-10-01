@@ -90,6 +90,15 @@ export class AuthService {
     if (res.error) throw new Error(res.error.message);
   }
 
+  /** Saves the signed-in user's own details; row-level security only lets people update their own row. */
+  async updateProfile(patch: { full_name?: string; telegram_username?: string | null }) {
+    const uid = this.userId();
+    if (!uid) throw new Error('Not signed in');
+    const res = await this.sb.from('profiles').update(patch).eq('id', uid).select('*').single();
+    if (res.error) throw new Error(res.error.message);
+    this.profile.set(res.data as Profile);
+  }
+
   async signOut() {
     await this.sb.auth.signOut();
     this.clear();

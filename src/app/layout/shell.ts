@@ -21,7 +21,7 @@ const NAV: NavItem[] = [
   { label: 'Activity', path: '/activity', icon: '↻' },
   { label: 'Notifications', path: '/notifications', icon: '🔔' },
   { label: 'Organization Settings', path: '/settings', icon: '⚙', roles: ['admin'] },
-  { label: 'Settings', path: '/account', icon: '⚙', roles: ['section_head', 'staff'] },
+  { label: 'Profile', path: '/account', icon: '◉' },
 ];
 
 @Component({
@@ -41,8 +41,10 @@ const NAV: NavItem[] = [
           }
         </nav>
         <div class="me">
-          <px-avatar [name]="auth.profile()?.full_name || auth.profile()?.email || ''" [size]="32" />
-          <div class="who"><div>{{ auth.profile()?.full_name }}</div><div class="small">{{ roleLabel() }}</div></div>
+          <a class="me-link" routerLink="/account" title="Your profile" (click)="menu.set(false)">
+            <px-avatar [name]="auth.profile()?.full_name || auth.profile()?.email || ''" [size]="32" />
+            <div class="who"><div>{{ auth.profile()?.full_name }}</div><div class="small">{{ roleLabel() }}</div></div>
+          </a>
           <button class="btn sm ghost out" (click)="auth.signOut()" title="Sign out">⏻</button>
         </div>
       </aside>
@@ -74,7 +76,9 @@ const NAV: NavItem[] = [
     nav a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: #d0d5dd; cursor: pointer;
       &:hover { background: #1d2939; } &.active { background: #1d2939; color: #fff; box-shadow: inset 3px 0 0 #84caff; } }
     .ico { width: 18px; text-align: center; } .pill { margin-left: auto; background: var(--primary); color: #fff; border-radius: 999px; font-size: 11px; padding: 0 7px; }
-    .me { display: flex; align-items: center; gap: 10px; padding: 10px; border-top: 1px solid #1d2939; .who { flex: 1; min-width: 0; color: #fff; line-height: 1.2; .small { color: #98a2b3; } } .out { color: #d0d5dd; } }
+    .me { display: flex; align-items: center; gap: 10px; padding: 10px; border-top: 1px solid #1d2939; .out { color: #d0d5dd; } }
+    .me-link { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding: 4px; margin: -4px; border-radius: 8px; color: inherit; &:hover { background: #1d2939; }
+      .who { flex: 1; min-width: 0; color: #fff; line-height: 1.2; .small { color: #98a2b3; } } }
     .main { min-width: 0; }
     header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 12px; position: sticky; top: 0; z-index: 20; }
     .burger { display: none; } .search { position: relative; flex: 1; max-width: 520px; }

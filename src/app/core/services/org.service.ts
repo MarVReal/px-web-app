@@ -59,7 +59,7 @@ export class OrgService {
   // ----- members -----
   async listMembers(): Promise<Member[]> {
     return unwrap(await this.sb.from('organization_members')
-      .select('*, profile:profiles!organization_members_user_id_fkey(id,email,full_name,avatar_url)').order('created_at')) as unknown as Member[];
+      .select('*, profile:profiles!organization_members_user_id_fkey(id,email,full_name,avatar_url,telegram_username)').order('created_at')) as unknown as Member[];
   }
   async updateMember(id: string, patch: { role?: Role; position_title?: string | null; is_active?: boolean }) {
     unwrap(await this.sb.from('organization_members').update(patch).eq('id', id));

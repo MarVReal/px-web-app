@@ -1,0 +1,46 @@
+<div class="au">
+  <section class="au-main">
+    <header class="au-top">
+      <a class="au-logo" routerLink="/" aria-label="Project-X home">
+        <svg class="au-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#2f54eb" /><path d="M10.5 10.5l11 11M21.5 10.5l-11 11" stroke="#fff" stroke-width="3.2" stroke-linecap="round" /></svg>
+        <span>Project-X</span>
+      </a>
+      <a class="au-home" routerLink="/">Back to home</a>
+    </header>
+
+    <div class="au-center">
+      <div class="au-box">
+        <h1 class="au-title">{{ title() }}</h1>
+        @if (subtitle()) { <p class="au-sub">{{ subtitle() }}</p> }
+        <ng-content />
+        <div class="au-alt"><ng-content select="[authAlt]" /></div>
+      </div>
+    </div>
+
+    <footer class="au-foot">&copy; {{ year }} Project-X</footer>
+  </section>
+
+  <aside class="au-brand" aria-hidden="true">
+    <div class="au-brand-in">
+      <p class="au-line">Plan the work. Move it across the board. Report it in a click.</p>
+      <p class="au-line-sub">One workspace for your team's tasks and the accomplishment report that comes out of them.</p>
+
+      <div class="au-stack">
+        <div class="au-card au-card-task">
+          <b>Compile October figures</b>
+          <div class="au-meta"><span class="au-pill">Urgent</span><span class="au-tag">Reports</span><span class="au-av">JC</span></div>
+        </div>
+        <div class="au-card au-card-report">
+          <b>Accomplishment report</b>
+          <small>Oct 1 to Oct 31</small>
+          <div class="au-bar"><i></i></div>
+          <span class="au-count">18 of 22 tasks completed</span>
+        </div>
+        <div class="au-card au-card-note">
+          <span class="au-av au-av-md">AR</span>
+          <span><b>New task assigned</b><small>Draft partner memo</small></span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
