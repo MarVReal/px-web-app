@@ -49,17 +49,21 @@ Legend: ✅ done · 🟡 partial · ⬜ not started
 - ✅ Export PDF, Excel, CSV (CSV is formula-injection safe)
 - ⬜ Open / re-export / edit a **saved** report (list is read-only today)
 - ⬜ Report filters by division / pipeline; supporting documents; hours beyond estimated effort
-- ⬜ **AI-generated reports with Gemini (planned, not started)** — see "Future: AI-assisted reports" below
+- ✅ **AI-written report narratives (Gemini)** built 2026-10-02: Reports page → "Write with AI" (separate by category, pick categories; organization reports get one section per team). Runs in the `generate-report` Edge Function. **Needs the `GEMINI_API_KEY` secret in Supabase before it works**, and an admin must tick "Allow AI report writing" in Organization Settings (already on for Walang Gutom Program). See "AI-assisted reports" below.
 
-## Future: AI-assisted reports (Gemini) — noted 2026-10-02, not started
+## AI-assisted reports (Gemini) — built 2026-10-02
 
-**Goal:** generate the accomplishment report with the Gemini API instead of the template narrative. The user picks how the report is separated by category (for example "Data Generation" and "Data Quality") and the system compiles one report per team.
+**What it does:** on the Reports page, after "Generate preview", **Write with AI** drafts the narrative from the `title` and `description` of every task in the chosen date range, with their status (completed, in progress, not started, delayed, carried over). "Separate by category" gives each category (for example "Data Generation", "Data Quality") its own section; ticking categories makes only those get a section and everything else goes under "Other work". Organization reports get one section per team plus a consolidated summary. The text lands in the existing editable box, and saved reports show an **AI-assisted** badge.
 
-**Input to the model:** for each selected category, the `title` and `description` of every task in the report period (plus status, so the summary uses the right tense). Nothing else is sent.
+**How it is built:** Edge Function `px-web-api/supabase/functions/generate-report/` (code split into `prompt.ts`, `gemini.ts`, `handler.ts`, `index.ts`), migration `20261001185334_px_ai_reports.sql`, 21 tests in `px-web-api/supabase/tests/generate_report.test.ts`. It uses Gemini's `generateContent` endpoint (documented as still supported next to the newer beta Interactions API) with model `gemini-3.5-flash-lite` unless `GEMINI_MODEL` is set.
 
-**Output:** one summary per category plus a team-level compilation. It lands in the existing editable narrative box, so the Section Head can review and change it before saving, and it is marked as AI-assisted.
+**Setup still required:** add the secrets `GEMINI_API_KEY` (and optionally `GEMINI_MODEL`) in Supabase → Edge Functions → Secrets. Until then the button shows "AI report writing is not set up yet". Not yet verified against the live Gemini API (no key was available to the build): the first real run is the test. Google's newer rule rejects *unrestricted* keys; if the first call fails with a message about the key, restrict it to the Generative Language API in Google Cloud / AI Studio.
 
-**Design notes (decide before building):**
+**Guards:** off per organization until an admin allows it; 30 AI reports per user per 24 hours and 500 per organization per 30 days; every request logged in `ai_report_usage` (admins can read it); the caller is checked with the same `can_view_report` rule as the Reports page and tasks are read as the caller, so row-level security applies; at most 300 tasks are sent per request; task text is treated as data, not instructions.
+
+**Not done yet:** caching identical requests, a usage page for admins, and an "AI-assisted" note on the exported PDF/Excel/CSV.
+
+**Original design notes:**
 1. **The Gemini key must never be in the frontend.** Both GitHub repos are public and the Angular bundle is public, so anything in `environment.ts`, a Vercel public env var, or the repo is exposed. Put the key in a Supabase secret (`supabase secrets set GEMINI_API_KEY=...`) and call Gemini only from a Supabase Edge Function, e.g. `generate-report`.
 2. **The Edge Function uses the caller's own login.** It reads tasks with the user's JWT so row-level security still applies (people can only summarize tasks they can already see) and checks the existing report permission before calling Gemini.
 3. **Category separation:** add a "Group by category" multi-select and a "Generate with AI" button on the Reports page. Categories come from `pipeline_categories`. Tasks with no category go under "Uncategorized".

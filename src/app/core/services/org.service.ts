@@ -15,7 +15,8 @@ export class OrgService {
     await this.auth.loadContext();
   }
   async getSettings() {
-    return unwrap(await this.sb.from('organization_settings').select('*').eq('organization_id', this.auth.orgId()!).single());
+    return unwrap(await this.sb.from('organization_settings').select('*').eq('organization_id', this.auth.orgId()!).single()) as unknown as
+      { section_heads_can_create_pipelines: boolean; ai_reports_enabled: boolean } | null;
   }
   async updateSettings(patch: Record<string, unknown>) {
     unwrap(await this.sb.from('organization_settings').update(patch).eq('organization_id', this.auth.orgId()!));

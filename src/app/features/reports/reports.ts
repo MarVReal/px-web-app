@@ -71,6 +71,35 @@ const monthEnd = (offset = 0) => new Date(today().getFullYear(), today().getMont
             <div class="stat"><div class="num">{{ s.completion_rate }}%</div><div class="lbl">Completion</div></div>
           </div>
 
+          <div class="ai">
+            <div class="row wrap">
+              <div><b>Write the narrative with AI</b>
+                <div class="muted small">Reads the title and description of each task in this period.</div></div>
+              <span class="spacer"></span>
+              <button class="btn primary" (click)="writeWithAi()" [disabled]="aiBusy() || aiEnabled() === false || s.total === 0">
+                {{ aiBusy() ? 'Writing…' : aiUsed() ? 'Write again' : 'Write with AI' }}</button>
+            </div>
+            @if (aiEnabled() === false) {
+              <div class="muted small">AI writing is turned off for your organization. An admin can turn it on in Organization Settings.</div>
+            } @else {
+              @if (kind() === 'organization') {
+                <div class="muted small">Each team gets its own section, plus a consolidated summary.</div>
+              } @else {
+                <label class="row small" style="font-weight: 500"><input type="checkbox" style="width: auto" [checked]="byCategory()" (change)="byCategory.set($any($event.target).checked)" /> Separate by category</label>
+                @if (byCategory() && categoryNames().length) {
+                  <div class="row wrap">
+                    <span class="muted small">Categories:</span>
+                    @for (c of categoryNames(); track c) {
+                      <label class="row small" style="font-weight: 450"><input type="checkbox" style="width: auto" [checked]="pickedCats().has(c)" (change)="toggleCat(c)" /> {{ c }}</label>
+                    }
+                  </div>
+                  <div class="muted small">Tick the categories that should get their own section; everything else goes under "Other work". Tick none to use every category.</div>
+                }
+              }
+              <div class="muted small">Task titles and descriptions are sent to Google Gemini to write this. Review and edit the text before saving.</div>
+            }
+          </div>
+
           @if (sections().length) {
             @for (sec of sections(); track sec.teamId; let i = $index) {
               <h3>{{ sec.team }} <span class="muted small">({{ sec.summary.completed }}/{{ sec.summary.total }} completed)</span></h3>
@@ -100,9 +129,11 @@ const monthEnd = (offset = 0) => new Date(today().getFullYear(), today().getMont
       <div class="card flush table-wrap"><table class="tbl"><thead><tr><th>Period</th><th>Type</th><th>Scope</th><th>Status</th><th>Completion</th></tr></thead><tbody>
         @for (r of saved(); track r.id) {
           <tr><td>{{ range(r) }}</td><td>{{ r.scope }}</td><td>{{ scopeName(r) }}</td>
-            <td><span class="badge" [class.ok]="r.status === 'final'">{{ r.status }}</span></td><td>{{ $any(r.summary).completion_rate ?? 0 }}%</td></tr>
+            <td><span class="badge" [class.ok]="r.status === 'final'">{{ r.status }}</span>
+              @if (r.ai_generated) { <span class="badge" title="Narrative drafted with AI">AI-assisted</span> }</td><td>{{ $any(r.summary).completion_rate ?? 0 }}%</td></tr>
         } @empty { <tr><td colspan="5" class="muted">Nothing saved yet.</td></tr> }</tbody></table></div>
     </div>`,
+  styles: `.ai { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }`,
 })
 export class Reports implements OnInit {
   protected auth = inject(AuthService);
@@ -117,6 +148,10 @@ export class Reports implements OnInit {
   picked = signal<Set<string>>(new Set());
   summary = signal<ReportSummary | null>(null); narrative = signal(''); sections = signal<Section[]>([]);
   busy = signal(false);
+  // AI writing: null until the organization's setting has been read (the server enforces it either way).
+  aiEnabled = signal<boolean | null>(null);
+  aiBusy = signal(false); aiUsed = signal(false); aiModel = signal<string | null>(null);
+  byCategory = signal(true); categoryNames = signal<string[]>([]); pickedCats = signal<Set<string>>(new Set());
 
   presets = [
     { label: 'This month', from: () => monthStart(), to: () => monthEnd() },
@@ -144,10 +179,45 @@ export class Reports implements OnInit {
       if (this.auth.role() !== 'staff') this.members.set(await this.org.listMembers());
       if (this.auth.role() === 'section_head') this.teamId.set(t[0]?.id ?? '');
     } catch (e) { this.toast.error(e); }
+    this.svc.categoryNames().then((c) => this.categoryNames.set(c)).catch(() => { /* categories are optional */ });
+    this.org.getSettings().then((s) => this.aiEnabled.set(s?.ai_reports_enabled === true)).catch(() => { /* the server decides */ });
   }
 
   preset(p: { from: () => Date; to: () => Date }) { this.from.set(isoDate(p.from())); this.to.set(isoDate(p.to())); this.reset(); }
-  reset() { this.summary.set(null); this.sections.set([]); this.narrative.set(''); }
+  reset() { this.summary.set(null); this.sections.set([]); this.narrative.set(''); this.aiUsed.set(false); this.aiModel.set(null); }
+  toggleCat(name: string) { this.pickedCats.update((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; }); }
+
+  /** Asks the AI to write the narrative from task titles and descriptions; the user edits it before saving. */
+  async writeWithAi() {
+    if (!this.summary()?.total) return;
+    this.aiBusy.set(true);
+    try {
+      const kind = this.kind();
+      const grouped = kind !== 'organization' && this.byCategory();
+      const r = await this.svc.aiNarrative({
+        scope: kind, from: this.from(), to: this.to(),
+        team_id: kind === 'team' ? this.teamId() : undefined,
+        team_ids: kind === 'organization' ? [...this.picked()] : undefined,
+        user_id: kind === 'individual' ? this.userId() : undefined,
+        group_by: grouped ? 'category' : 'none',
+        categories: grouped && this.pickedCats().size ? [...this.pickedCats()] : undefined,
+      });
+      if (r.empty) { this.toast.info(r.message ?? 'There are no tasks in this period.'); return; }
+      if (kind === 'organization') {
+        this.sections.update((list) => list.map((s) => {
+          const hit = r.sections.find((x) => x.key === s.teamId);
+          return hit ? { ...s, narrative: hit.narrative } : s;
+        }));
+        this.narrative.set(r.overview);
+      } else {
+        this.narrative.set([r.overview, ...r.sections.map((s) => `${s.title}\n${s.narrative}`)].filter(Boolean).join('\n\n'));
+      }
+      this.aiUsed.set(true); this.aiModel.set(r.model);
+      this.toast.success(r.omitted
+        ? `Narrative written. ${r.omitted} tasks were left out of the text to keep it short; the numbers above still count them.`
+        : 'Narrative written. Review it before saving.');
+    } catch (e) { this.toast.error(e); } finally { this.aiBusy.set(false); }
+  }
   pick(id: string) { this.picked.update((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); this.reset(); }
   setSectionNarrative(i: number, v: string) { this.sections.update((l) => l.map((s, j) => (j === i ? { ...s, narrative: v } : s))); }
 
@@ -191,7 +261,8 @@ export class Reports implements OnInit {
       const narrative = this.sections().length
         ? this.sections().map((s) => `${s.team}\n${s.narrative}`).join('\n\n') + '\n\n' + this.narrative() : this.narrative();
       await this.svc.save({ scope: this.kind(), team_id: this.kind() === 'team' ? this.teamId() : null,
-        subject_user_id: this.kind() === 'individual' ? this.userId() : null, from: this.from(), to: this.to(), narrative, summary: this.summary()!, status });
+        subject_user_id: this.kind() === 'individual' ? this.userId() : null, from: this.from(), to: this.to(), narrative, summary: this.summary()!, status,
+        ai_generated: this.aiUsed(), ai_model: this.aiModel() });
       this.saved.set(await this.svc.list());
       this.toast.success(status === 'final' ? 'Report finalized' : 'Draft saved');
     } catch (e) { this.toast.error(e); }

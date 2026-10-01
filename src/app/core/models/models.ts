@@ -49,7 +49,7 @@ export interface ReportSummary {
 export interface MonthlyReport {
   id: string; scope: 'individual' | 'team' | 'organization'; team_id: string | null; subject_user_id: string | null;
   period_start: string; period_end: string; status: 'draft' | 'final'; narrative: string | null; summary: ReportSummary | Record<string, never>;
-  created_at: string;
+  created_at: string; ai_generated?: boolean; ai_model?: string | null;
 }
 
 export const ROLE_LABEL: Record<Role, string> = { admin: 'Admin', section_head: 'Section Head', staff: 'Staff' };

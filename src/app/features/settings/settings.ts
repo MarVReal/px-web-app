@@ -20,6 +20,10 @@ import { Avatar } from '../../shared/components/avatar';
         <label class="field">Timezone<input formControlName="timezone" /></label>
         <label class="field">Description<textarea formControlName="description"></textarea></label>
         <label class="row"><input type="checkbox" style="width:auto" formControlName="section_heads_can_create_pipelines" /> Section Heads can create pipelines</label>
+        <div class="stack" style="gap: 2px">
+          <label class="row"><input type="checkbox" style="width:auto" formControlName="ai_reports_enabled" /> Allow AI report writing</label>
+          <span class="muted small">When on, people can ask Google Gemini to write the narrative of an accomplishment report. The titles and descriptions of the tasks in that report are sent to Google to do this. Off by default.</span>
+        </div>
         <div class="muted small">Plan: {{ auth.organization()?.plan }} · Status: {{ auth.organization()?.subscription_status }} · Created {{ auth.organization()?.created_at?.slice(0, 10) }}</div>
         <div><button class="btn primary" [disabled]="f.invalid">Save</button></div>
       </form>
@@ -31,20 +35,20 @@ export class OrgSettings implements OnInit {
   private toast = inject(ToastService);
   f = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]], industry: [''], logo_url: [''], timezone: ['UTC'], description: [''],
-    section_heads_can_create_pipelines: [true],
+    section_heads_can_create_pipelines: [true], ai_reports_enabled: [false],
   });
 
   async ngOnInit() {
     const o = this.auth.organization()!;
-    const s = await this.org.getSettings().catch(() => null) as { section_heads_can_create_pipelines: boolean } | null;
+    const s = await this.org.getSettings().catch(() => null) as { section_heads_can_create_pipelines: boolean; ai_reports_enabled: boolean } | null;
     this.f.patchValue({ name: o.name, industry: o.industry ?? '', logo_url: o.logo_url ?? '', timezone: o.timezone, description: o.description ?? '',
-      section_heads_can_create_pipelines: s?.section_heads_can_create_pipelines ?? true });
+      section_heads_can_create_pipelines: s?.section_heads_can_create_pipelines ?? true, ai_reports_enabled: s?.ai_reports_enabled ?? false });
   }
   async save() {
     const v = this.f.getRawValue();
     try {
       await this.org.updateOrganization({ name: v.name.trim(), industry: v.industry || null, logo_url: v.logo_url || null, timezone: v.timezone, description: v.description || null });
-      await this.org.updateSettings({ section_heads_can_create_pipelines: v.section_heads_can_create_pipelines });
+      await this.org.updateSettings({ section_heads_can_create_pipelines: v.section_heads_can_create_pipelines, ai_reports_enabled: v.ai_reports_enabled });
       this.toast.success('Settings saved');
     } catch (e) { this.toast.error(e); }
   }
