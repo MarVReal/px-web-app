@@ -108,7 +108,7 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
               @for (c of comments(); track c.id) {
                 <div class="row" style="align-items: flex-start">
                   <px-avatar [name]="c.author?.full_name || c.author?.email || ''" [size]="28" />
-                  <div><b>{{ c.author?.full_name || c.author?.email }}</b> <span class="muted small">{{ ago(c.created_at) }}</span><div style="white-space: pre-wrap">{{ c.body }}</div></div>
+                  <div><b>{{ c.author?.full_name || c.author?.email }}</b>&ngsp;<span class="muted small">{{ ago(c.created_at) }}</span><div style="white-space: pre-wrap">{{ c.body }}</div></div>
                 </div>
               } @empty { <div class="muted">No comments yet.</div> }
               <div class="row"><input [value]="draft()" (input)="draft.set($any($event.target).value)" (keydown.enter)="comment()" placeholder="Write a comment…" maxlength="5000" />
