@@ -66,11 +66,11 @@ type Field = 'priority' | 'category' | 'tags';
                   <article class="task task-card" cdkDrag [cdkDragDisabled]="pop()?.id === t.id" [cdkDragData]="t" (click)="open(t.id)">
                     <px-task-card-view [task]="t" [items]="layout()" [editable]="canEdit(t)" (edit)="toggle(t, $event.field, $event.event)" />
                     @if (pop(); as p) { @if (p.id === t.id) {
-                      <div class="pop" [style.top.px]="p.top" (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
+                      <div class="pop" [style.top.px]="p.top" [style.bottom.px]="p.bottom" [style.left.px]="p.left" [style.width.px]="p.width" [style.max-height.px]="p.maxHeight"
+                        (click)="$event.stopPropagation()" (mousedown)="$event.stopPropagation()">
                         @switch (p.field) {
                           @case ('priority') { @for (o of priorities; track o.value) { <button class="opt" [class.on]="t.priority === o.value" (click)="setPriority(t, o.value)">{{ o.label }}</button> } }
                           @case ('category') {
-                            <button class="opt" [class.on]="!t.category" (click)="setCategory(t, null)">— None —</button>
                             @for (c of categories(); track c.id) { <button class="opt" [class.on]="t.category?.id === c.id" (click)="setCategory(t, c)">{{ c.name }}</button> }
                             @if (!categories().length) { <span class="muted small pad">No categories yet.</span> } }
                           @case ('tags') {
@@ -137,8 +137,9 @@ type Field = 'priority' | 'category' | 'tags';
     .list { display: flex; flex-direction: column; gap: 8px; min-height: 50px; }
     .task { position: relative; cursor: grab; border: 1px solid transparent; transition: border-color .15s, box-shadow .15s;
       &:hover { border-color: var(--border); box-shadow: 0 4px 6px -1px rgba(16, 24, 40, .06), 0 2px 4px -2px rgba(16, 24, 40, .06); } }
-    .pop { position: absolute; left: 8px; right: 8px; z-index: 30; background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; gap: 2px; cursor: default; max-height: 260px; overflow: auto; }
+    /* position: fixed so the scrolling board and columns can never clip it; the place is set from the clicked chip. */
+    .pop { position: fixed; z-index: 60; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; gap: 2px; cursor: default; overflow: auto; }
     .opt { text-align: left; border: 0; background: none; padding: 5px 8px; border-radius: 6px; font: inherit; cursor: pointer; &:hover { background: var(--surface-2); } &.on { background: var(--primary-50); font-weight: 600; } }
     .pad { padding: 4px 8px; }
     .drop-hint { text-align: center; padding: 18px 0; border: 1px dashed #c4cad4; border-radius: 10px; }`,
@@ -159,7 +160,7 @@ export class Kanban implements OnInit {
   categories = signal<Label[]>([]); tags = signal<Label[]>([]);
   loading = signal(true);
   dialog = signal<{ id: string | null; stage: string | null } | null>(null);
-  pop = signal<{ id: string; field: Field; top: number } | null>(null);
+  pop = signal<{ id: string; field: Field; left: number; width: number; maxHeight: number; top?: number; bottom?: number } | null>(null);
   stageModal = signal(false);
   menu = signal(false);
   newStage = signal(''); newKind = signal<StageKind>('active');
@@ -182,6 +183,15 @@ export class Kanban implements OnInit {
 
   async ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id')!;
+    // The card popover is fixed to the screen, so close it when anything scrolls or the window resizes
+    // (scrolling inside the popover itself is fine).
+    const closePop = (e?: Event) => {
+      if (e?.target instanceof Element && e.target.closest('.pop')) return;
+      if (this.pop()) this.pop.set(null);
+    };
+    document.addEventListener('scroll', closePop, true);
+    window.addEventListener('resize', closePop);
+    this.destroy.onDestroy(() => { document.removeEventListener('scroll', closePop, true); window.removeEventListener('resize', closePop); });
     try {
       const pipe = await this.work.getPipeline(id);
       this.pipeline.set(pipe);
@@ -223,10 +233,16 @@ export class Kanban implements OnInit {
     ev.stopPropagation();
     const p = this.pop();
     if (p?.id === t.id && p.field === field) { this.pop.set(null); return; }
-    // anchor the popover just below the clicked chip, wherever the layout put it
+    // Open just below the clicked chip, or above it when there is not enough room underneath.
     const btn = (ev.target as HTMLElement).closest('button'), art = btn?.closest('article');
-    const top = btn && art ? btn.getBoundingClientRect().bottom - art.getBoundingClientRect().top + 4 : 64;
-    this.pop.set({ id: t.id, field, top });
+    if (!btn || !art) return;
+    const b = btn.getBoundingClientRect(), a = art.getBoundingClientRect();
+    const roomBelow = window.innerHeight - b.bottom - 12, roomAbove = b.top - 12;
+    const above = roomBelow < 200 && roomAbove > roomBelow;
+    const base = { id: t.id, field, left: a.left + 8, width: a.width - 16 };
+    this.pop.set(above
+      ? { ...base, bottom: window.innerHeight - b.top + 4, maxHeight: Math.min(260, roomAbove) }
+      : { ...base, top: b.bottom + 4, maxHeight: Math.min(260, roomBelow) });
   }
   setPriority(t: Task, priority: Priority) { this.patchLocal(t, { priority }, () => this.work.updateTask(t.id, { priority })); }
   setCategory(t: Task, c: Label | null) {

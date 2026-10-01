@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, inject, input, output, signal } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Component, ElementRef, OnInit, inject, input, output, signal } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { Activity, Comment, Label, PRIORITIES, Priority, Stage, Task, TaskLink, TeamMember } from '../../core/models/models';
@@ -10,7 +10,10 @@ import { WorkService } from '../../core/services/work.service';
 import { Avatar } from '../../shared/components/avatar';
 import { Modal } from '../../shared/components/modal';
 import { labelBg, labelFg } from '../../shared/utils/label-colors';
-import { timeAgo } from '../../shared/utils/format';
+import { isoDate, timeAgo } from '../../shared/utils/format';
+
+/** Required text must contain something other than spaces. */
+const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { required: true });
 
 /** Create (taskId null) or view/edit a task, with comments, links and activity history. */
 @Component({
@@ -20,26 +23,37 @@ import { timeAgo } from '../../shared/utils/format';
     <px-modal [title]="taskId() ? 'Task details' : 'New task'" [wide]="true" (closed)="close()">
       <form [formGroup]="f" (ngSubmit)="save()">
         <div class="modal-body stack">
-          <label class="field">Task name<input formControlName="title" maxlength="300" /></label>
+          <p class="muted small" style="margin: 0">Fields marked <b class="req">*</b> are required.</p>
+          <label class="field"><span class="lt">Task name<b class="req" aria-hidden="true">*</b></span>
+            <input formControlName="title" maxlength="300" aria-required="true" />
+            @if (bad('title')) { <span class="err">Enter a task name.</span> }</label>
           <div class="grid cols-2" style="gap: 12px">
-            <label class="field">Stage
+            <label class="field"><span class="lt">Stage<b class="req" aria-hidden="true">*</b></span>
               @if (taskId()) {
                 <select [value]="stageId()" [disabled]="!canEdit() || moving()" (change)="moveTo($any($event.target).value)">
                   <option [value]="stageId()">{{ stageName(stageId()) }} (current)</option>
                   @for (s of otherStages(); track s.id) { <option [value]="s.id">Move to {{ s.name }}</option> }
                 </select>
               } @else {
-                <select formControlName="stage_id">@for (s of stages(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }</select>
+                <select formControlName="stage_id" aria-required="true">@for (s of stages(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }</select>
               }
             </label>
-            <label class="field">Priority<select formControlName="priority">
-              @for (p of priorities; track p.value) { <option [value]="p.value">{{ p.label }}</option> }</select></label>
-            <label class="field">Start date<input type="date" formControlName="start_date" /></label>
-            <label class="field">Due date<input type="date" formControlName="due_date" /></label>
-            <label class="field">Category<select formControlName="category_id">
-              <option value="">— None —</option>
-              @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }</select>
-              @if (!categories().length) { <span class="muted small" style="font-weight: 400">No categories yet. @if (canManage()) { <a routerLink="/labels" [queryParams]="{ pipeline: pipelineId() }">Add some</a> }</span> }
+            <label class="field"><span class="lt">Priority<b class="req" aria-hidden="true">*</b></span>
+              <select formControlName="priority" aria-required="true">
+                @for (p of priorities; track p.value) { <option [value]="p.value">{{ p.label }}</option> }</select></label>
+            <label class="field"><span class="lt">Start date<b class="req" aria-hidden="true">*</b></span>
+              <input type="date" formControlName="start_date" aria-required="true" />
+              @if (bad('start_date')) { <span class="err">Choose a start date.</span> }</label>
+            <label class="field"><span class="lt">Due date</span><input type="date" formControlName="due_date" /></label>
+            <label class="field"><span class="lt">Category<b class="req" aria-hidden="true">*</b></span>
+              <select formControlName="category_id" aria-required="true">
+                <option value="" disabled>Select a category…</option>
+                @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }</select>
+              @if (bad('category_id')) { <span class="err">Choose a category.</span> }
+              @if (!categories().length) {
+                <span class="muted small" style="font-weight: 400">This pipeline has no categories yet, and every task needs one.
+                  @if (canManage()) { <a routerLink="/labels" [queryParams]="{ pipeline: pipelineId() }">Add a category</a> } @else { Ask a Section Head or Admin to add one. }</span>
+              }
             </label>
             <label class="field">Estimated effort (hours)<input type="number" min="0" step="any" inputmode="decimal" formControlName="estimated_hours" placeholder="e.g. 4.5" /></label>
           </div>
@@ -58,14 +72,16 @@ import { timeAgo } from '../../shared/utils/format';
                 </button>
               } @empty { <span class="muted small">No team members yet.</span> }
             </div></div>
-          <label class="field">Description<textarea formControlName="description"></textarea></label>
-          <label class="field">Notes<textarea formControlName="notes"></textarea></label>
+          <label class="field"><span class="lt">Description<b class="req" aria-hidden="true">*</b></span>
+            <textarea formControlName="description" aria-required="true"></textarea>
+            @if (bad('description')) { <span class="err">Add a short description of the work.</span> }</label>
+          <label class="field"><span class="lt">Notes</span><textarea formControlName="notes"></textarea></label>
         </div>
         <div class="modal-foot">
           @if (taskId() && canManage()) { <button type="button" class="btn danger" (click)="remove()">Delete</button> }
           <span class="spacer"></span>
           <button type="button" class="btn" (click)="close()">Close</button>
-          <button class="btn primary" [disabled]="f.invalid || busy() || !canEdit()">{{ taskId() ? 'Save changes' : 'Create task' }}</button>
+          <button class="btn primary" [disabled]="busy() || !canEdit()">{{ taskId() ? 'Save changes' : 'Create task' }}</button>
         </div>
       </form>
 
@@ -111,6 +127,7 @@ import { timeAgo } from '../../shared/utils/format';
     </px-modal>`,
   styles: `
     .lbl { font-weight: 550; font-size: 13px; }
+    .req { color: var(--danger); margin-left: 3px; font-weight: 700; }
     .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer;
       &.on { background: var(--primary-50); border-color: var(--primary); } &:disabled { opacity: .5; cursor: not-allowed; } }`,
 })
@@ -131,10 +148,15 @@ export class TaskDialog implements OnInit {
 
   priorities = PRIORITIES;
   f = inject(FormBuilder).nonNullable.group({
-    title: ['', [Validators.required, Validators.maxLength(300)]], stage_id: ['', Validators.required],
-    priority: ['medium' as Priority], start_date: [''], due_date: [''], category_id: [''],
-    estimated_hours: [null as number | null, [Validators.min(0)]], description: [''], notes: [''],
+    title: ['', [notBlank, Validators.maxLength(300)]], stage_id: ['', Validators.required],
+    priority: ['medium' as Priority, Validators.required], start_date: ['', Validators.required], due_date: [''],
+    category_id: ['', Validators.required],
+    estimated_hours: [null as number | null, [Validators.min(0)]], description: ['', notBlank], notes: [''],
   });
+  submitted = signal(false);
+  private el = inject<ElementRef<HTMLElement>>(ElementRef);
+  /** Show a field's error once the person has been in it, or has tried to save. */
+  bad = (name: string) => { const c = this.f.get(name); return !!c && c.invalid && (c.touched || this.submitted()); };
   categories = signal<Label[]>([]); tags = signal<Label[]>([]);
   selected = signal<Set<string>>(new Set());
   selectedTags = signal<Set<string>>(new Set());
@@ -160,6 +182,7 @@ export class TaskDialog implements OnInit {
     const initial = this.defaultStageId() ?? this.stages()[0]?.id ?? '';
     this.f.controls.stage_id.setValue(initial);
     this.stageId.set(initial);
+    if (!this.taskId()) this.f.controls.start_date.setValue(isoDate(new Date())); // new tasks start today unless changed
     try {
       const [c, t] = await Promise.all([this.work.listLabels('categories', this.pipelineId()), this.work.listLabels('tags', this.pipelineId())]);
       this.categories.set(c); this.tags.set(t);
@@ -197,7 +220,13 @@ export class TaskDialog implements OnInit {
   }
 
   async save() {
-    if (this.f.invalid) return;
+    if (this.f.invalid) {
+      // Explain what is missing instead of silently doing nothing: show every error and jump to the first one.
+      this.submitted.set(true); this.f.markAllAsTouched();
+      this.toast.info('Fill in the fields marked * before saving.');
+      setTimeout(() => this.el.nativeElement.querySelector<HTMLElement>('input.ng-invalid, select.ng-invalid, textarea.ng-invalid')?.focus());
+      return;
+    }
     this.busy.set(true);
     try {
       const v = this.f.getRawValue();
