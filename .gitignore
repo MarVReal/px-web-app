@@ -48,3 +48,10 @@ Thumbs.db
 
 # Superdesign temp files
 /.superdesign/tmp/
+
+# Secrets and local environment. Only the Supabase URL and publishable key belong in the frontend.
+.env
+.env.*
+!.env.example
+*.pem
+*.key

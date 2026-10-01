@@ -47,6 +47,23 @@ Legend: ✅ done · 🟡 partial · ⬜ not started
 - ✅ Export PDF, Excel, CSV (CSV is formula-injection safe)
 - ⬜ Open / re-export / edit a **saved** report (list is read-only today)
 - ⬜ Report filters by division / pipeline; supporting documents; hours beyond estimated effort
+- ⬜ **AI-generated reports with Gemini (planned, not started)** — see "Future: AI-assisted reports" below
+
+## Future: AI-assisted reports (Gemini) — noted 2026-10-02, not started
+
+**Goal:** generate the accomplishment report with the Gemini API instead of the template narrative. The user picks how the report is separated by category (for example "Data Generation" and "Data Quality") and the system compiles one report per team.
+
+**Input to the model:** for each selected category, the `title` and `description` of every task in the report period (plus status, so the summary uses the right tense). Nothing else is sent.
+
+**Output:** one summary per category plus a team-level compilation. It lands in the existing editable narrative box, so the Section Head can review and change it before saving, and it is marked as AI-assisted.
+
+**Design notes (decide before building):**
+1. **The Gemini key must never be in the frontend.** Both GitHub repos are public and the Angular bundle is public, so anything in `environment.ts`, a Vercel public env var, or the repo is exposed. Put the key in a Supabase secret (`supabase secrets set GEMINI_API_KEY=...`) and call Gemini only from a Supabase Edge Function, e.g. `generate-report`.
+2. **The Edge Function uses the caller's own login.** It reads tasks with the user's JWT so row-level security still applies (people can only summarize tasks they can already see) and checks the existing report permission before calling Gemini.
+3. **Category separation:** add a "Group by category" multi-select and a "Generate with AI" button on the Reports page. Categories come from `pipeline_categories`. Tasks with no category go under "Uncategorized".
+4. **Failure and cost:** if Gemini fails or times out, fall back to the current template narrative. Add a per-organization monthly limit, truncate very long descriptions, and cache by a hash of the inputs so regenerating an unchanged report costs nothing.
+5. **Data tracking:** add `ai_generated`, `ai_model` and `ai_prompt_version` to `monthly_reports` so AI drafts are traceable.
+6. **Privacy:** task titles and descriptions leave the system and go to Google. Before sending real agency data, check Google's current data-use terms for the free and paid Gemini API tiers, and tell users the report is AI-assisted.
 
 ## Phase 5 — Analytics, audit, advanced permissions, SaaS
 - ✅ Role-specific dashboards (admin / section head / staff), charts, filters
@@ -59,7 +76,7 @@ Legend: ✅ done · 🟡 partial · ⬜ not started
 ## Known issues / risks
 1. **UI retest (2026-10-01, as Admin):** all modals, task dialog (typing, hours, category, tags, stage move, links, comments, delete), stage editor, labels page, all sidebar pages and report preview verified in the browser with 0 failed requests. Still untested: Section Head and Staff sessions, PDF/Excel/CSV download, invite acceptance in a second browser.
    Bugs found and fixed during the retest: modal backdrop cancelled mouse focus in every modal (inputs unclickable); card popover inputs blocked by drag; comments could not be posted (trigger bug); report "delayed" over-counted; updating teams / divisions / members / reports failed (trigger bug, fixed with the date-range migration).
-2. **Demo users with a weak password exist in the live Supabase project.** Delete them before sharing the app publicly.
+2. **Demo users with a weak password exist in the live Supabase project** (`admin@demo.com`, `sectionhead@demo.com`, `staff1@demo.com`, `staff2@demo.com`, password `Demo1234!`). **Both GitHub repos are public and `px-web-api/supabase/seed.sql` contains that password**, so anyone can sign in as the demo admin. Delete the demo users and the Demo Organization before real use.
 3. **Leaked-password protection is off** (Supabase dashboard → Auth).
 4. No automated tests (frontend or SQL). The RLS test script used during development should be saved into `px-web-api/supabase/tests/`.
 5. Staff can see all tasks of their own team (per spec "according to permissions"); stricter per-task privacy would need a `visibility` column.
