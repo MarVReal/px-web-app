@@ -367,6 +367,9 @@ export class PipelineLabels implements OnInit {
     const patch: { name?: string; color?: string } = {};
     if (name !== l.name) patch.name = name;
     if (color !== normalizeHex(l.color)) patch.color = color;
+    const noun = ed.kind === 'tags' ? 'tag' : 'category';
+    const changes = [patch.name ? `rename it to "${patch.name}"` : '', patch.color ? 'change its color' : ''].filter(Boolean).join(' and ');
+    if (changes && !(await this.confirm.ask(`Save changes to the ${noun} "${l.name}"?\n\nThis will ${changes} on every task that uses it.`, 'Save changes', 'primary'))) return;
     this.saving.set(true);
     try {
       await this.work.updateLabel(ed.kind, ed.id, patch);

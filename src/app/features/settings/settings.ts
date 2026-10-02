@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, ValidatorFn, Validators } from '@angular/forms';
 import { AuthService } from '../../core/auth/auth.service';
 import { ROLE_LABEL } from '../../core/models/models';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { OrgService } from '../../core/services/org.service';
 import { ToastService } from '../../core/services/toast.service';
 import { Avatar } from '../../shared/components/avatar';
@@ -33,22 +34,43 @@ export class OrgSettings implements OnInit {
   protected auth = inject(AuthService);
   private org = inject(OrgService);
   private toast = inject(ToastService);
+  private confirm = inject(ConfirmService);
   f = inject(FormBuilder).nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2)]], industry: [''], logo_url: [''], timezone: ['UTC'], description: [''],
     section_heads_can_create_pipelines: [true], ai_reports_enabled: [false],
   });
+  /** Values as last loaded or saved, so the confirmation can say what is about to change. */
+  private saved = this.f.getRawValue();
 
   async ngOnInit() {
     const o = this.auth.organization()!;
     const s = await this.org.getSettings().catch(() => null) as { section_heads_can_create_pipelines: boolean; ai_reports_enabled: boolean } | null;
     this.f.patchValue({ name: o.name, industry: o.industry ?? '', logo_url: o.logo_url ?? '', timezone: o.timezone, description: o.description ?? '',
       section_heads_can_create_pipelines: s?.section_heads_can_create_pipelines ?? true, ai_reports_enabled: s?.ai_reports_enabled ?? false });
+    this.saved = this.f.getRawValue();
+  }
+  /** One line per setting that differs from what is saved. */
+  private changes(v: typeof this.saved): string[] {
+    const on = (b: boolean) => (b ? 'On' : 'Off'), s = this.saved, out: string[] = [];
+    if (v.name.trim() !== s.name) out.push(`Name: "${s.name}" → "${v.name.trim()}"`);
+    if (v.industry !== s.industry) out.push('Industry');
+    if (v.logo_url !== s.logo_url) out.push('Logo URL');
+    if (v.timezone !== s.timezone) out.push(`Timezone: ${s.timezone} → ${v.timezone}`);
+    if (v.description !== s.description) out.push('Description');
+    if (v.section_heads_can_create_pipelines !== s.section_heads_can_create_pipelines)
+      out.push(`Section Heads can create pipelines: ${on(s.section_heads_can_create_pipelines)} → ${on(v.section_heads_can_create_pipelines)}`);
+    if (v.ai_reports_enabled !== s.ai_reports_enabled) out.push(`Allow AI report writing: ${on(s.ai_reports_enabled)} → ${on(v.ai_reports_enabled)}`);
+    return out;
   }
   async save() {
     const v = this.f.getRawValue();
+    const changes = this.changes(v);
+    if (!changes.length) { this.toast.info('No changes to save.'); return; }
+    if (!(await this.confirm.ask(`Save these changes to the organization settings?\n\n${changes.map((c) => '• ' + c).join('\n')}`, 'Save changes', 'primary'))) return;
     try {
       await this.org.updateOrganization({ name: v.name.trim(), industry: v.industry || null, logo_url: v.logo_url || null, timezone: v.timezone, description: v.description || null });
       await this.org.updateSettings({ section_heads_can_create_pipelines: v.section_heads_can_create_pipelines, ai_reports_enabled: v.ai_reports_enabled });
+      this.saved = v;
       this.toast.success('Settings saved');
     } catch (e) { this.toast.error(e); }
   }

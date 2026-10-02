@@ -41,6 +41,12 @@ export class OrgService {
     unwrap(await this.sb.from('teams').insert({ ...t, organization_id: this.auth.orgId() }));
   }
   async updateTeam(id: string, patch: Partial<Team>) { unwrap(await this.sb.from('teams').update(patch).eq('id', id)); }
+  /** Permanently deletes a section with its pipelines, tasks, saved reports and memberships (org admins only, enforced by RLS). */
+  async deleteTeam(id: string) {
+    // RLS turns a forbidden delete into "0 rows affected" rather than an error, so check what was actually removed.
+    const rows = unwrap(await this.sb.from('teams').delete().eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('Only organization admins can delete a section.');
+  }
 
   async listTeamMembers(teamId?: string): Promise<TeamMember[]> {
     let q = this.sb.from('team_members').select('id, team_id, user_id, is_head, profile:profiles!team_members_user_id_fkey(id,email,full_name,avatar_url)');

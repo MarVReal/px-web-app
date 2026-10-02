@@ -23,14 +23,18 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
     <px-modal [title]="taskId() ? 'Task details' : 'New task'" [wide]="true" (closed)="close()">
       <form [formGroup]="f" (ngSubmit)="save()">
         <div class="modal-body stack">
-          <p class="muted small" style="margin: 0">Fields marked <b class="req">*</b> are required.</p>
+          @if (readOnly()) {
+            <p class="ro-note">🔒 Only Admins and Section Heads can edit task details. You can still move the card, comment and add links.</p>
+          } @else {
+            <p class="muted small" style="margin: 0">Fields marked <b class="req">*</b> are required.</p>
+          }
           <label class="field"><span class="lt">Task name<b class="req" aria-hidden="true">*</b></span>
             <input formControlName="title" maxlength="300" aria-required="true" />
             @if (bad('title')) { <span class="err">Enter a task name.</span> }</label>
           <div class="grid cols-2" style="gap: 12px">
             <label class="field"><span class="lt">Stage<b class="req" aria-hidden="true">*</b></span>
               @if (taskId()) {
-                <select [value]="stageId()" [disabled]="!canEdit() || moving()" (change)="moveTo($any($event.target).value)">
+                <select [value]="stageId()" [disabled]="!canMove() || moving()" (change)="moveTo($any($event.target).value)">
                   <option [value]="stageId()">{{ stageName(stageId()) }} (current)</option>
                   @for (s of otherStages(); track s.id) { <option [value]="s.id">Move to {{ s.name }}</option> }
                 </select>
@@ -60,7 +64,7 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
           <div class="field"><span class="lbl">Tags</span>
             <div class="row wrap">
               @for (t of tags(); track t.id) {
-                <button type="button" class="pill" [class.on]="selectedTags().has(t.id)" [style.background]="selectedTags().has(t.id) ? bg(t.color) : ''"
+                <button type="button" class="pill" [disabled]="readOnly()" [class.on]="selectedTags().has(t.id)" [style.background]="selectedTags().has(t.id) ? bg(t.color) : ''"
                   [style.color]="selectedTags().has(t.id) ? fg(t.color) : ''" (click)="toggleTag(t.id)">#{{ t.name }}</button>
               } @empty { <span class="muted small" style="font-weight: 400">No tags yet. @if (canManage()) { <a routerLink="/labels" [queryParams]="{ pipeline: pipelineId() }">Add some</a> }</span> }
             </div></div>
@@ -70,7 +74,7 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
                 <button type="button" class="pill" [class.on]="selected().has(m.user_id)" [disabled]="!canAssign(m.user_id)" (click)="toggle(m.user_id)">
                   <px-avatar [name]="m.profile?.full_name || m.profile?.email || ''" [size]="20" /> {{ m.profile?.full_name || m.profile?.email }}
                 </button>
-              } @empty { <span class="muted small">No team members yet.</span> }
+              } @empty { <span class="muted small">No section members yet.</span> }
             </div></div>
           <label class="field"><span class="lt">Description<b class="req" aria-hidden="true">*</b></span>
             <textarea formControlName="description" aria-required="true"></textarea>
@@ -81,7 +85,7 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
           @if (taskId() && canManage()) { <button type="button" class="btn danger" (click)="remove()">Delete</button> }
           <span class="spacer"></span>
           <button type="button" class="btn" (click)="close()">Close</button>
-          <button class="btn primary" [disabled]="busy() || !canEdit()">{{ taskId() ? 'Save changes' : 'Create task' }}</button>
+          @if (!readOnly()) { <button class="btn primary" [disabled]="busy()">{{ taskId() ? 'Save changes' : 'Create task' }}</button> }
         </div>
       </form>
 
@@ -95,7 +99,8 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
               @for (l of links(); track l.id) {
                 <div class="row">🔗 <a [href]="l.url" target="_blank" rel="noopener noreferrer">{{ l.title || l.url }}</a>
                   @if (l.title) { <span class="muted small">{{ host(l.url) }}</span> }
-                  <span class="spacer"></span><button class="btn sm danger" (click)="removeLink(l)">Remove</button></div>
+                  <span class="spacer"></span>
+                  @if (canDeleteLink(l)) { <button class="btn sm danger" (click)="removeLink(l)" title="Delete this link">Delete</button> }</div>
               } @empty { <div class="muted">No links yet.</div> }
               <div class="row wrap">
                 <input style="flex: 2; min-width: 200px" placeholder="https://…" [value]="linkUrl()" (input)="linkUrl.set($any($event.target).value)" (keydown.enter)="addLink()" />
@@ -108,7 +113,8 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
               @for (c of comments(); track c.id) {
                 <div class="row" style="align-items: flex-start">
                   <px-avatar [name]="c.author?.full_name || c.author?.email || ''" [size]="28" />
-                  <div><b>{{ c.author?.full_name || c.author?.email }}</b>&ngsp;<span class="muted small">{{ ago(c.created_at) }}</span><div style="white-space: pre-wrap">{{ c.body }}</div></div>
+                  <div style="flex: 1; min-width: 0"><b>{{ c.author?.full_name || c.author?.email }}</b>&ngsp;<span class="muted small">{{ ago(c.created_at) }}</span><div style="white-space: pre-wrap">{{ c.body }}</div></div>
+                  @if (canDeleteComment(c)) { <button class="btn sm ghost danger" (click)="removeComment(c)" title="Delete this comment" aria-label="Delete comment">🗑</button> }
                 </div>
               } @empty { <div class="muted">No comments yet.</div> }
               <div class="row"><input [value]="draft()" (input)="draft.set($any($event.target).value)" (keydown.enter)="comment()" placeholder="Write a comment…" maxlength="5000" />
@@ -128,7 +134,8 @@ const notBlank: ValidatorFn = (c) => (String(c.value ?? '').trim() ? null : { re
   styles: `
     .lbl { font-weight: 550; font-size: 13px; }
     .req { color: var(--danger); margin-left: 3px; font-weight: 700; }
-    .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 13px; cursor: pointer;
+    .ro-note { margin: 0; padding: 8px 12px; border-radius: 8px; background: var(--surface-2); color: var(--muted); font-size: 13px; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; line-height: 1.3; text-align: left; overflow-wrap: anywhere; cursor: pointer;
       &.on { background: var(--primary-50); border-color: var(--primary); } &:disabled { opacity: .5; cursor: not-allowed; } }`,
 })
 export class TaskDialog implements OnInit {
@@ -164,6 +171,8 @@ export class TaskDialog implements OnInit {
   tab = signal<'comments' | 'links' | 'activity'>('comments');
   draft = signal(''); linkUrl = signal(''); linkTitle = signal('');
   busy = signal(false); moving = signal(false);
+  /** Details are locked for staff once a task exists; they can still move it, comment and add links. */
+  readOnly = signal(false);
   stageId = signal('');
   private dirty = false;
   private task?: Task;
@@ -172,10 +181,13 @@ export class TaskDialog implements OnInit {
 
   otherStages = () => this.stages().filter((s) => s.id !== this.stageId());
   stageName = (id: string) => this.stages().find((s) => s.id === id)?.name ?? '';
-  canEdit = () => !this.taskId() || this.canManage() || this.task?.created_by === this.auth.userId()
+  /** Mirrors the RLS rule for moving a card: managers, the creator, or an assignee. */
+  canMove = () => !this.taskId() || this.canManage() || this.task?.created_by === this.auth.userId()
     || !!this.task?.assignees?.some((a) => a.user_id === this.auth.userId());
-  /** Managers assign anyone; staff may only toggle themselves. */
-  canAssign = (userId: string) => this.canManage() || userId === this.auth.userId();
+  /** Managers assign anyone. While publishing a new task, staff may only add themselves; after that assignees are locked. */
+  canAssign = (userId: string) => this.canManage() || (!this.taskId() && userId === this.auth.userId());
+  canDeleteComment = (c: Comment) => this.canManage() || c.created_by === this.auth.userId();
+  canDeleteLink = (l: TaskLink) => this.canManage() || l.created_by === this.auth.userId();
   host = (u: string) => { try { return new URL(u).host; } catch { return ''; } };
 
   async ngOnInit() {
@@ -198,6 +210,7 @@ export class TaskDialog implements OnInit {
       this.original = new Set((task.assignees ?? []).map((a) => a.user_id));
       this.selected.set(new Set(this.original));
       this.selectedTags.set(new Set(task.tags.map((x) => x.id)));
+      if (!this.canManage()) { this.readOnly.set(true); this.f.disable({ emitEvent: false }); }
       await this.reloadThread();
     } catch (e) { this.toast.error(e); }
   }
@@ -227,6 +240,7 @@ export class TaskDialog implements OnInit {
       setTimeout(() => this.el.nativeElement.querySelector<HTMLElement>('input.ng-invalid, select.ng-invalid, textarea.ng-invalid')?.focus());
       return;
     }
+    if (this.taskId() && !(await this.confirm.ask('Save your changes to this task?', 'Save changes', 'primary'))) return;
     this.busy.set(true);
     try {
       const v = this.f.getRawValue();
@@ -271,7 +285,12 @@ export class TaskDialog implements OnInit {
     catch (e) { this.toast.error(e); }
   }
   async removeLink(l: TaskLink) {
-    try { await this.work.deleteLink(l.id); this.dirty = true; await this.reloadThread(); } catch (e) { this.toast.error(e); }
+    if (!(await this.confirm.ask('Delete this link? The deletion will be recorded in the activity log.', 'Delete'))) return;
+    try { await this.work.deleteLink(l.id); this.dirty = true; await this.reloadThread(); this.toast.success('Link deleted'); } catch (e) { this.toast.error(e); }
+  }
+  async removeComment(c: Comment) {
+    if (!(await this.confirm.ask('Delete this comment? It will be removed for everyone and the deletion will be recorded in the activity log.', 'Delete'))) return;
+    try { await this.work.deleteComment(c.id); this.dirty = true; await this.reloadThread(); this.toast.success('Comment deleted'); } catch (e) { this.toast.error(e); }
   }
 
   private async reloadThread() {

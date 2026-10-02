@@ -47,14 +47,21 @@ export class ReportService {
     })) as ReportSummary;
   }
 
-  /** Draft narrative generated from the numbers; the user edits it before finalizing. */
-  draftNarrative(label: string, period: string, s: ReportSummary): string {
-    const done = s.tasks.filter((t) => t.status === 'completed').map((t) => `• ${t.title}`);
+  /**
+   * Draft narrative generated from the numbers; the user edits it before finalizing. Written in the first person
+   * ("I" for an individual report, "we" for a section or the organization) and without due dates.
+   */
+  draftNarrative(period: string, s: ReportSummary, plural = false): string {
+    const who = plural ? 'We' : 'I', be = plural ? 'are' : 'am';
+    const titles = (status: string) => s.tasks.filter((t) => t.status === status).map((t) => `• ${t.title}`);
+    const extra = [s.carried_over ? `${s.carried_over} carried over from an earlier period` : '', s.delayed ? `${s.delayed} delayed` : ''].filter(Boolean);
     const lines = [
-      `${label} — ${period}: ${s.completed} of ${s.total} tasks completed (${s.completion_rate}%).`,
-      `${s.in_progress} in progress, ${s.pending} pending, ${s.carried_over} carried over${s.delayed ? `, ${s.delayed} delayed` : ''}.`,
+      `${who} completed ${s.completed} of ${s.total} tasks in ${period} (${s.completion_rate}%).`
+        + ` ${who} ${be} still working on ${s.in_progress} and have yet to start ${s.pending}${extra.length ? `, with ${extra.join(' and ')}` : ''}.`,
     ];
-    if (done.length) lines.push('', 'Accomplishments:', ...done);
+    const blocks: [string, string[]][] = [[`${who} completed the following:`, titles('completed')],
+      [`${who} ${be} currently working on:`, titles('in_progress')], [`${who} have yet to start:`, titles('pending')]];
+    for (const [heading, list] of blocks) if (list.length) lines.push('', heading, ...list);
     return lines.join('\n');
   }
 

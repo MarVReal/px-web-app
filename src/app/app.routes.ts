@@ -22,11 +22,12 @@ export const routes: Routes = [
       { path: 'card-designer', canActivate: [roleGuard('admin', 'section_head')], loadComponent: () => import('./features/pipelines/card-designer').then((m) => m.CardDesigner) },
       { path: 'pipelines/:id/labels', redirectTo: 'labels' },
       { path: 'pipelines/:id', loadComponent: () => import('./features/pipelines/kanban').then((m) => m.Kanban) },
-      { path: 'teams', canActivate: [roleGuard('admin', 'section_head')], loadComponent: () => import('./features/teams/teams').then((m) => m.Teams) },
+      { path: 'sections', canActivate: [roleGuard('admin', 'section_head')], loadComponent: () => import('./features/teams/teams').then((m) => m.Teams) },
+      { path: 'teams', redirectTo: 'sections' }, // old name, kept so existing links and bookmarks still work
       { path: 'users', canActivate: [roleGuard('admin')], loadComponent: () => import('./features/users/users').then((m) => m.Users) },
       { path: 'reports', loadComponent: () => import('./features/reports/reports').then((m) => m.Reports) },
       { path: 'activity', loadComponent: () => import('./features/activity/activity').then((m) => m.ActivityPage) },
-      { path: 'notifications', loadComponent: () => import('./features/notifications/notifications').then((m) => m.Notifications) },
+      { path: 'notifications', redirectTo: 'dashboard' }, // notifications now live in the bell in the top bar
       { path: 'settings', canActivate: [roleGuard('admin')], loadComponent: () => import('./features/settings/settings').then((m) => m.OrgSettings) },
       { path: 'account', loadComponent: () => import('./features/settings/settings').then((m) => m.Account) },
     ],

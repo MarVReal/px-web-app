@@ -49,7 +49,7 @@ import { Modal } from '../../shared/components/modal';
             <label class="field">Email<input type="email" [value]="email()" (input)="email.set($any($event.target).value)" /></label>
             <label class="field">Role<select [value]="role()" (change)="role.set($any($event.target).value)">
               @for (r of roles; track r) { <option [value]="r" [selected]="r === role()">{{ label[r] }}</option> }</select></label>
-            <label class="field">Team<select [value]="teamId()" (change)="teamId.set($any($event.target).value)">
+            <label class="field">Section<select [value]="teamId()" (change)="teamId.set($any($event.target).value)">
               <option value="" [selected]="!teamId()">— None —</option>@for (t of teams(); track t.id) { <option [value]="t.id" [selected]="t.id === teamId()">{{ t.name }}</option> }</select></label>
             <label class="field">Position / title (optional)<input [value]="position()" (input)="position.set($any($event.target).value)" /></label>
           </div>
@@ -80,11 +80,19 @@ export class Users implements OnInit {
   }
 
   async setRole(m: Member, role: Role) {
-    try { await this.org.updateMember(m.id, { role }); this.toast.success('Role updated'); } catch (e) { this.toast.error(e); }
-    await this.load();
+    const who = m.profile.full_name || m.profile.email;
+    const ok = await this.confirm.ask(`Change ${who}'s role from ${this.label[m.role]} to ${this.label[role]}?\n\nTheir access changes immediately.`, 'Change role', 'primary');
+    if (ok) {
+      try { await this.org.updateMember(m.id, { role }); this.toast.success('Role updated'); } catch (e) { this.toast.error(e); }
+    }
+    await this.load(); // also puts the dropdown back when the change is cancelled
   }
   async toggleActive(m: Member) {
-    if (m.is_active && !(await this.confirm.ask(`Deactivate ${m.profile.full_name || m.profile.email}? They will lose access.`, 'Deactivate'))) return;
+    const who = m.profile.full_name || m.profile.email;
+    const ok = m.is_active
+      ? await this.confirm.ask(`Deactivate ${who}? They will lose access.`, 'Deactivate')
+      : await this.confirm.ask(`Reactivate ${who}? They will get their access back.`, 'Reactivate', 'primary');
+    if (!ok) return;
     try { await this.org.updateMember(m.id, { is_active: !m.is_active }); await this.load(); } catch (e) { this.toast.error(e); }
   }
   async invite() {
@@ -93,7 +101,10 @@ export class Users implements OnInit {
       this.link.set(this.url(inv.token)); await this.load();
     } catch (e) { this.toast.error(e); }
   }
-  async revoke(i: Invitation) { try { await this.org.revokeInvitation(i.id); await this.load(); } catch (e) { this.toast.error(e); } }
+  async revoke(i: Invitation) {
+    if (!(await this.confirm.ask(`Revoke the invitation for ${i.email}? Their link will stop working.`, 'Revoke'))) return;
+    try { await this.org.revokeInvitation(i.id); await this.load(); } catch (e) { this.toast.error(e); }
+  }
   url(token: string) { return `${window.location.origin}/invite/${token}`; }
   async copy(token: string) { await navigator.clipboard.writeText(this.url(token)); this.toast.success('Link copied'); }
   async copyLink() { await navigator.clipboard.writeText(this.link()); this.toast.success('Link copied'); }

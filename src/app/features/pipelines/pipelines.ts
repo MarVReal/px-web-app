@@ -21,15 +21,15 @@ import { Modal } from '../../shared/components/modal';
           <div class="grid cols-4">
             @for (p of byTeam(t.id); track p.id) {
               <a class="card pcard" [routerLink]="['/pipelines', p.id]"><b>{{ p.name }}</b><div class="muted small">{{ p.description || 'Kanban pipeline' }}</div></a>
-            } @empty { <div class="muted small">No pipelines for this team yet.</div> }
+            } @empty { <div class="muted small">No pipelines for this section yet.</div> }
           </div>
-        } @empty { <div class="empty card">You aren't on a team yet. {{ auth.isAdmin() ? 'Create a team first.' : 'Ask an admin to add you to one.' }}</div> }
+        } @empty { <div class="empty card">You aren't in a section yet. {{ auth.isAdmin() ? 'Create a section first.' : 'Ask an admin to add you to one.' }}</div> }
       }
     </div>
     @if (show()) {
       <px-modal title="New pipeline" (closed)="show.set(false)">
         <div class="modal-body stack">
-          <label class="field">Team<select [value]="teamId()" (change)="teamId.set($any($event.target).value)">
+          <label class="field">Section<select [value]="teamId()" (change)="teamId.set($any($event.target).value)">
             @for (t of manageable(); track t.id) { <option [value]="t.id" [selected]="t.id === teamId()">{{ t.name }}</option> }</select></label>
           <label class="field">Name<input [value]="name()" (input)="name.set($any($event.target).value)" placeholder="e.g. Monthly Data Quality Activities" /></label>
           <label class="field">Description<textarea [value]="desc()" (input)="desc.set($any($event.target).value)"></textarea></label>

@@ -16,10 +16,10 @@ import { ToastService } from './core/services/toast.service';
     @if (confirm.state(); as c) {
       <div class="modal-backdrop" style="z-index: 200">
         <div class="modal" style="max-width: 420px">
-          <div class="modal-body">{{ c.message }}</div>
+          <div class="modal-body" style="white-space: pre-line">{{ c.message }}</div>
           <div class="modal-foot">
             <button class="btn" (click)="confirm.answer(false)">Cancel</button>
-            <button class="btn danger solid" (click)="confirm.answer(true)">{{ c.confirmLabel }}</button>
+            <button class="btn" [class.primary]="c.tone === 'primary'" [class.danger]="c.tone === 'danger'" [class.solid]="c.tone === 'danger'" (click)="confirm.answer(true)">{{ c.confirmLabel }}</button>
           </div>
         </div>
       </div>

@@ -14,10 +14,10 @@ import { Modal } from '../../shared/components/modal';
   imports: [Modal, Avatar, RouterLink],
   template: `
     <div class="page">
-      <div class="page-head"><h1>{{ auth.isAdmin() ? 'Teams' : 'My Team' }}</h1><span class="spacer"></span>
+      <div class="page-head"><h1>{{ auth.isAdmin() ? 'Sections' : 'My Section' }}</h1><span class="spacer"></span>
         @if (auth.isAdmin()) {
           <button class="btn" (click)="divModal.set(true)">+ Division</button>
-          <button class="btn primary" (click)="openTeam(null)">+ New team</button> }</div>
+          <button class="btn primary" (click)="openTeam(null)">+ New section</button> }</div>
       @if (loading()) { <div class="empty">Loading…</div> }
       @for (t of teams(); track t.id) {
         <div class="card" style="margin-bottom: 14px">
@@ -26,7 +26,7 @@ import { Modal } from '../../shared/components/modal';
             <span class="spacer"></span>
             @if (auth.isAdmin()) {
               <button class="btn sm" (click)="openTeam(t)">Edit</button>
-              <button class="btn sm danger" (click)="archive(t)">Archive</button> }
+              <button class="btn sm danger" (click)="remove(t)">Delete</button> }
           </div>
           <div class="row wrap" style="margin-top: 12px">
             @for (m of membersOf(t.id); track m.id) {
@@ -47,11 +47,11 @@ import { Modal } from '../../shared/components/modal';
             @for (p of pipesOf(t.id); track p.id) { <a class="badge" [routerLink]="['/pipelines', p.id]">{{ p.name }}</a> } @empty { <span class="muted small">none</span> }
           </div>
         </div>
-      } @empty { @if (!loading()) { <div class="empty card">No teams yet.</div> } }
+      } @empty { @if (!loading()) { <div class="empty card">No sections yet.</div> } }
     </div>
 
     @if (teamModal()) {
-      <px-modal [title]="editing() ? 'Edit team' : 'New team'" (closed)="teamModal.set(false)">
+      <px-modal [title]="editing() ? 'Edit section' : 'New section'" (closed)="teamModal.set(false)">
         <div class="modal-body stack">
           <label class="field">Name<input [value]="tName()" (input)="tName.set($any($event.target).value)" /></label>
           <label class="field">Division<select [value]="tDiv()" (change)="tDiv.set($any($event.target).value)">
@@ -105,33 +105,52 @@ export class Teams implements OnInit {
   }
   async saveTeam() {
     const body = { name: this.tName().trim(), description: this.tDesc().trim() || null, division_id: this.tDiv() || null };
+    const ed = this.editing();
+    if (ed && !(await this.confirm.ask(`Save your changes to the section "${ed.name}"?`, 'Save changes', 'primary'))) return;
     try {
       if (this.editing()) await this.org.updateTeam(this.editing()!.id, body); else await this.org.createTeam(body);
-      this.teamModal.set(false); await this.load(); this.toast.success('Team saved');
+      this.teamModal.set(false); await this.load(); this.toast.success('Section saved');
     } catch (e) { this.toast.error(e); }
   }
   async saveDivision() {
     try { await this.org.createDivision(this.dName().trim()); this.divModal.set(false); this.dName.set(''); await this.load(); }
     catch (e) { this.toast.error(e); }
   }
-  async archive(t: Team) {
-    if (!(await this.confirm.ask(`Archive team "${t.name}"? It will be hidden from lists.`, 'Archive'))) return;
-    try { await this.org.updateTeam(t.id, { is_archived: true }); await this.load(); } catch (e) { this.toast.error(e); }
+  /** Admin only. Deleting a section also deletes its pipelines, tasks and saved reports, so the confirmation spells that out. */
+  async remove(t: Team) {
+    if (!this.auth.isAdmin()) return;
+    let tasks: number | null = null;
+    try { tasks = (await this.work.listTasks({ teamId: t.id, limit: 1 })).total; } catch { /* the count is only for the warning */ }
+    const pipes = this.pipesOf(t.id).length, members = this.membersOf(t.id).length;
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const lines = [
+      pipes || tasks ? `• ${plural(pipes, 'pipeline')} and ${tasks === null ? 'all their tasks' : plural(tasks, 'task')}` : null,
+      '• its saved reports',
+      members ? `• its ${plural(members, 'membership')} (the people stay in the organization)` : null,
+    ].filter(Boolean);
+    const ok = await this.confirm.ask(`Permanently delete the section "${t.name}"?\n\nThis also deletes:\n${lines.join('\n')}\n\nThis cannot be undone.`, 'Delete section');
+    if (!ok) return;
+    try { await this.org.deleteTeam(t.id); await this.load(); this.toast.success('Section deleted'); } catch (e) { this.toast.error(e); }
   }
   async addMember(t: Team, sel: HTMLSelectElement) {
     const id = sel.value; sel.value = '';
     if (!id) return;
+    const who = this.orgMembers().find((x) => x.user_id === id)?.profile;
+    if (!(await this.confirm.ask(`Add ${who?.full_name || who?.email || 'this person'} to ${t.name}?`, 'Add member', 'primary'))) return;
     try { await this.org.addTeamMember(t.id, id); await this.load(); } catch (e) { this.toast.error(e); }
   }
   async removeMember(m: TeamMember) {
+    const t = this.teams().find((x) => x.id === m.team_id);
+    if (!(await this.confirm.ask(`Remove ${m.profile?.full_name || m.profile?.email || 'this person'} from ${t?.name ?? 'this section'}?`, 'Remove'))) return;
     try { await this.org.removeTeamMember(m.id); await this.load(); } catch (e) { this.toast.error(e); }
   }
   async makeHead(t: Team, m: TeamMember) {
     const role = this.orgMembers().find((x) => x.user_id === m.user_id)?.role;
+    const who = m.profile?.full_name || m.profile?.email || 'this person';
+    const ok = await this.confirm.ask(`Make ${who} the Section Head of ${t.name}?${role === 'staff' ? '\n\nThey will also be promoted from Staff to Section Head, which changes their access.' : ''}`, 'Make Section Head', 'primary');
+    if (!ok) return;
     try {
       if (role === 'staff') {
-        const ok = await this.confirm.ask('Promote this user to Section Head?', 'Promote');
-        if (!ok) return;
         await this.org.updateMember(this.orgMembers().find((x) => x.user_id === m.user_id)!.id, { role: 'section_head' });
       }
       await this.org.setTeamHead(t.id, m.user_id); await this.load(); this.toast.success('Section head assigned');
