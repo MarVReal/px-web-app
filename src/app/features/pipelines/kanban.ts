@@ -1,6 +1,6 @@
 import { CdkDragDrop, CdkDrag, CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { sanitizeLayout } from '../../core/models/card-layout';
 import { Label, PRIORITIES, Pipeline, Priority, Stage, StageKind, Task, TeamMember, priorityLabel } from '../../core/models/models';
@@ -35,6 +35,10 @@ type Field = 'priority' | 'category' | 'tags';
                   <button role="menuitem" (click)="menu.set(false); stageModal.set(true)">✎ Edit stages</button>
                   <a role="menuitem" routerLink="/labels" [queryParams]="{ pipeline: pipeline()?.id }" (click)="menu.set(false)">⚑ Categories &amp; tags</a>
                   <a role="menuitem" routerLink="/card-designer" [queryParams]="{ pipeline: pipeline()?.id }" (click)="menu.set(false)">▦ Card designer</a>
+                  @if (canDelete()) {
+                    <hr class="menu-sep" />
+                    <button role="menuitem" class="menu-danger" (click)="menu.set(false); removePipeline()">🗑 Delete pipeline</button>
+                  }
                 </div>
               }
             </div>
@@ -131,6 +135,8 @@ type Field = 'priority' | 'category' | 'tags';
     .menu-backdrop { position: fixed; inset: 0; z-index: 40; }
     .menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 200px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-lg); padding: 4px; display: flex; flex-direction: column;
       button, a { text-align: left; border: 0; background: none; padding: 8px 12px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; &:hover { background: var(--surface-2); } } }
+    .menu-sep { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+    .menu .menu-danger { color: var(--danger); &:hover { background: var(--danger-50); } }
     .board { display: flex; gap: 12px; align-items: stretch; flex: 1; min-height: 0; overflow-x: auto; padding-bottom: 4px; }
     .col { display: flex; flex-direction: column; min-height: 0; background: #eceff3; border-radius: 12px; flex: 1 1 280px; min-width: 260px; max-width: 340px; padding: 0 8px 8px; border-top: 3px solid #98a2b3;
       &.active { border-top-color: #2e90fa; } &.review { border-top-color: #f79009; } &.done { border-top-color: var(--success); } }
@@ -150,6 +156,7 @@ type Field = 'priority' | 'category' | 'tags';
 })
 export class Kanban implements OnInit {
   private route = inject(ActivatedRoute);
+  private router = inject(Router);
   private work = inject(WorkService);
   private org = inject(OrgService);
   private auth = inject(AuthService);
@@ -173,6 +180,8 @@ export class Kanban implements OnInit {
 
   layout = computed(() => sanitizeLayout(this.pipeline()?.card_layout));
   canManage = computed(() => this.auth.isAdmin() || this.members().some((m) => m.user_id === this.auth.userId() && m.is_head));
+  /** Only org admins may delete a pipeline (mirrors the pipelines_delete RLS policy). */
+  canDelete = computed(() => this.auth.isAdmin());
   /** Mirrors the RLS rule: managers, the creator, or an assignee may edit. */
   canEdit = (t: Task) => this.canManage() || t.created_by === this.auth.userId() || !!t.assignees?.some((a) => a.user_id === this.auth.userId());
   overdue = (t: Task) => isOverdue(t.due_date, t.completed_at);
@@ -297,6 +306,18 @@ export class Kanban implements OnInit {
     try {
       await Promise.all([this.work.updateStage(a.id, { position: b.position }), this.work.updateStage(b.id, { position: a.position })]);
       await this.reloadStages();
+    } catch (e) { this.toast.error(e); }
+  }
+  async removePipeline() {
+    const pipe = this.pipeline();
+    if (!pipe || !this.canDelete()) return;
+    const n = this.tasks().length;
+    const what = n ? `its ${n >= 500 ? 'tasks' : n === 1 ? '1 task' : n + ' tasks'}, stages and labels` : 'its stages and labels';
+    if (!(await this.confirm.ask(`Permanently delete pipeline "${pipe.name}" and ${what}? This cannot be undone.`, 'Delete pipeline'))) return;
+    try {
+      await this.work.deletePipeline(pipe.id);
+      this.toast.success('Pipeline deleted');
+      await this.router.navigateByUrl('/pipelines');
     } catch (e) { this.toast.error(e); }
   }
   async removeStage(s: Stage) {

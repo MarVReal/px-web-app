@@ -56,6 +56,12 @@ export class WorkService {
     return pipe;
   }
   async updatePipeline(id: string, patch: Partial<Pipeline>) { unwrap(await this.sb.from('pipelines').update(patch).eq('id', id)); }
+  /** Permanently deletes a pipeline with its stages, tasks and labels (org admins only, enforced by RLS). */
+  async deletePipeline(id: string) {
+    // RLS turns a forbidden delete into "0 rows affected" rather than an error, so check what was actually removed.
+    const rows = unwrap(await this.sb.from('pipelines').delete().eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('Only organization admins can delete a pipeline.');
+  }
 
   async listStages(pipelineId: string): Promise<Stage[]> {
     return unwrap(await this.sb.from('pipeline_stages').select('*').eq('pipeline_id', pipelineId).order('position'));

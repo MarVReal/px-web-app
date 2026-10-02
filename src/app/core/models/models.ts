@@ -20,6 +20,9 @@ export interface Invitation {
   token: string; status: string; expires_at: string; created_at: string;
 }
 
+/** A pending invitation addressed to the signed-in user (from the `my_pending_invitations` RPC). */
+export interface MyInvitation { token: string; role: Role; organization_name: string; team_name: string | null; expires_at: string; }
+
 export interface Pipeline { id: string; organization_id: string; team_id: string; name: string; description: string | null; is_archived: boolean; card_layout: { key: string; width: string }[] | null; }
 export interface Stage { id: string; pipeline_id: string; name: string; position: number; kind: StageKind; color: string | null; }
 
