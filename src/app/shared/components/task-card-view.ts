@@ -46,7 +46,6 @@ import { Avatar } from './avatar';
                     <span class="meta counts">
                       @if (task().comment_count) { <span>💬 {{ task().comment_count }}</span> }
                       @if (task().link_count) { <span>🔗 {{ task().link_count }}</span> }
-                      @if (task().progress > 0) { <span>{{ task().progress === 100 ? '✓ ' : '' }}{{ task().progress }}%</span> }
                     </span> }
                   @case ('description') { <span class="desc">{{ task().description }}</span> }
                 }
@@ -69,8 +68,9 @@ import { Avatar } from './avatar';
     .priority-item { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px; font-weight: 500; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; border-radius: 4px;
       &:hover:not(:disabled) { color: var(--text); } &:disabled { cursor: default; } }
     .priority-dot { width: 7px; height: 7px; border-radius: 50%; background: #98a2b3; &.medium { background: #2e90fa; } &.high { background: var(--warn); } &.urgent { background: #7a5af8; } }
-    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-    .chip { border: 0; border-radius: 6px; padding: 2px 8px; font: inherit; font-size: 11px; font-weight: 600; background: #eef0f4; color: #475467; cursor: pointer;
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+    /* Small text that wraps, so long category and tag names stay readable instead of being clipped. */
+    .chip { border: 0; border-radius: 6px; padding: 2px 6px; font: inherit; font-size: 10px; font-weight: 600; line-height: 1.3; max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; background: #eef0f4; color: #475467; cursor: pointer;
       &:hover:not(:disabled) { filter: brightness(.96); } &:disabled { cursor: default; } }
     .divider { border: 0; border-top: 1px dashed var(--border); margin: 0; width: 100%; }
     .progress { display: flex; align-items: center; gap: 8px; width: 100%; } .bar { flex: 1; height: 4px; background: #e4e7ec; border-radius: 4px; i { display: block; height: 100%; background: var(--primary); border-radius: 4px; } }
@@ -111,7 +111,7 @@ export class TaskCardView {
       case 'completed_at': return !!t.completed_at;
       case 'estimated_hours': return t.estimated_hours != null && t.estimated_hours > 0;
       case 'progress': return t.progress > 0;
-      case 'counts': return !!(t.comment_count || t.link_count || t.progress > 0);
+      case 'counts': return !!(t.comment_count || t.link_count);
       case 'description': return !!t.description?.trim();
     }
   }

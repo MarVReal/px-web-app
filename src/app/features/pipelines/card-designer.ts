@@ -196,6 +196,7 @@ export class CardDesigner implements OnInit {
   }
 
   async save() {
+    if (!(await this.confirm.ask('Save these card layout changes?\n\nThey apply to every card in this pipeline.', 'Save layout', 'primary'))) return;
     this.busy.set(true);
     try {
       const layout = sanitizeLayout(this.items());

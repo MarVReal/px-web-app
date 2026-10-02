@@ -144,6 +144,12 @@ export class WorkService {
   async addComment(taskId: string, body: string, mentions: string[] = []) {
     unwrap(await this.sb.from('task_comments').insert({ task_id: taskId, body, mentions, created_by: this.auth.userId() }));
   }
+  /** Authors and managers may delete a comment; the deletion is recorded in the task's activity log. */
+  async deleteComment(id: string) {
+    // RLS turns a forbidden delete into "0 rows affected", so check that something was removed.
+    const rows = unwrap(await this.sb.from('task_comments').delete().eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('You can only delete your own comments.');
+  }
 
   // ----- links -----
   async listLinks(taskId: string): Promise<TaskLink[]> {
@@ -152,7 +158,10 @@ export class WorkService {
   async addLink(taskId: string, url: string, title: string) {
     unwrap(await this.sb.from('task_links').insert({ task_id: taskId, url: url.trim(), title: title.trim() || null, created_by: this.auth.userId() }));
   }
-  async deleteLink(id: string) { unwrap(await this.sb.from('task_links').delete().eq('id', id)); }
+  async deleteLink(id: string) {
+    const rows = unwrap(await this.sb.from('task_links').delete().eq('id', id).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('You can only delete links you added.');
+  }
 
   // ----- per-pipeline categories & tags -----
   async listLabels(kind: 'categories' | 'tags', pipelineId: string): Promise<Label[]> {

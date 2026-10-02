@@ -34,18 +34,18 @@ const monthEnd = (offset = 0) => new Date(today().getFullYear(), today().getMont
         <div class="row wrap">
           <label class="field">Report type<select (change)="kind.set($any($event.target).value); reset()">
             <option value="individual">Individual</option>
-            @if (auth.role() !== 'staff') { <option value="team">Team</option> }
-            @if (auth.isAdmin()) { <option value="organization">Organization (compile teams)</option> }</select></label>
+            @if (auth.role() !== 'staff') { <option value="team">Section</option> }
+            @if (auth.isAdmin()) { <option value="organization">Organization (compile sections)</option> }</select></label>
           <label class="field">From<input type="date" [value]="from()" [max]="to()" (change)="from.set($any($event.target).value); reset()" /></label>
           <label class="field">To<input type="date" [value]="to()" [min]="from()" (change)="to.set($any($event.target).value); reset()" /></label>
           @if (kind() === 'team') {
-            <label class="field">Team<select (change)="teamId.set($any($event.target).value); reset()">
+            <label class="field">Section<select (change)="teamId.set($any($event.target).value); reset()">
               <option value="">Select…</option>@for (t of teams(); track t.id) { <option [value]="t.id" [selected]="t.id === teamId()">{{ t.name }}</option> }</select></label> }
           @if (kind() === 'individual' && auth.role() !== 'staff') {
             <label class="field">Staff<select (change)="userId.set($any($event.target).value); reset()">
               @for (m of members(); track m.user_id) { <option [value]="m.user_id" [selected]="m.user_id === userId()">{{ m.profile.full_name || m.profile.email }}</option> }</select></label> }
           @if (kind() === 'organization') {
-            <div class="field">Teams to include<div class="row wrap">
+            <div class="field">Sections to include<div class="row wrap">
               @for (t of teams(); track t.id) { <label class="row" style="font-weight:450"><input type="checkbox" style="width:auto" [checked]="picked().has(t.id)" (change)="pick(t.id)" /> {{ t.name }}</label> }</div></div> }
           <span class="spacer"></span>
           <button class="btn primary" (click)="generate()" [disabled]="busy() || !ready()">{{ busy() ? 'Generating…' : 'Generate preview' }}</button>
@@ -83,7 +83,7 @@ const monthEnd = (offset = 0) => new Date(today().getFullYear(), today().getMont
               <div class="muted small">AI writing is turned off for your organization. An admin can turn it on in Organization Settings.</div>
             } @else {
               @if (kind() === 'organization') {
-                <div class="muted small">Each team gets its own section, plus a consolidated summary.</div>
+                <div class="muted small">Each section gets its own part, plus a consolidated summary.</div>
               } @else {
                 <label class="row small" style="font-weight: 500"><input type="checkbox" style="width: auto" [checked]="byCategory()" (change)="byCategory.set($any($event.target).checked)" /> Separate by category</label>
                 @if (byCategory() && categoryNames().length) {
@@ -165,7 +165,7 @@ export class Reports implements OnInit {
   label = computed(() => rangeLabel(this.from(), this.to()));
   validRange = computed(() => !!this.from() && !!this.to() && this.to() >= this.from()
     && (new Date(this.to()).getTime() - new Date(this.from()).getTime()) / 864e5 <= 366);
-  docTitle = computed(() => ({ individual: 'Individual Accomplishment Report', team: 'Team Accomplishment Report', organization: 'Organization Accomplishment Report' })[this.kind()]);
+  docTitle = computed(() => ({ individual: 'Individual Accomplishment Report', team: 'Section Accomplishment Report', organization: 'Organization Accomplishment Report' })[this.kind()]);
   ready = computed(() => this.validRange() && (this.kind() === 'team' ? !!this.teamId() : this.kind() === 'organization' ? this.picked().size > 0 : !!this.userId()));
   range = (r: MonthlyReport) => rangeLabel(r.period_start, r.period_end);
   scopeName = (r: MonthlyReport) => r.scope === 'team' ? this.teams().find((t) => t.id === r.team_id)?.name ?? 'Team'
@@ -229,18 +229,16 @@ export class Reports implements OnInit {
         const secs: Section[] = [];
         for (const t of this.teams().filter((x) => this.picked().has(x.id))) {
           const summary = await this.svc.summary('team', from, to, t.id);
-          secs.push({ teamId: t.id, team: t.name, summary, narrative: this.svc.draftNarrative(t.name, lbl, summary) });
+          secs.push({ teamId: t.id, team: t.name, summary, narrative: this.svc.draftNarrative(lbl, summary, true) });
         }
         const total = sum(secs.map((s) => s.summary));
         this.sections.set(secs); this.summary.set(total);
-        this.narrative.set(this.svc.draftNarrative(this.auth.organization()!.name, lbl, total));
+        this.narrative.set(this.svc.draftNarrative(lbl, total, true));
       } else {
         const kind = this.kind();
         const s = await this.svc.summary(kind, from, to, kind === 'team' ? this.teamId() : undefined, kind === 'individual' ? this.userId() : undefined);
         this.summary.set(s);
-        const who = this.kind() === 'team' ? this.teams().find((t) => t.id === this.teamId())?.name ?? 'Team'
-          : this.members().find((x) => x.user_id === this.userId())?.profile.full_name ?? this.auth.profile()?.full_name ?? 'Me';
-        this.narrative.set(this.svc.draftNarrative(who, lbl, s));
+        this.narrative.set(this.svc.draftNarrative(lbl, s, kind !== 'individual'));
       }
     } catch (e) { this.toast.error(e); } finally { this.busy.set(false); }
   }

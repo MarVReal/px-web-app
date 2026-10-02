@@ -18,7 +18,7 @@ const slug = (d: ReportDoc) => `${d.title}-${d.team ?? d.subject ?? d.organizati
 const csvCell = (v: string) => `"${(/^[=+\-@]/.test(v) ? "'" + v : v).replace(/"/g, '""')}"`;
 
 export function exportCsv(d: ReportDoc) {
-  const meta = [['Report', d.title], ['Organization', d.organization], ['Team', d.team ?? ''], ['Period', d.period],
+  const meta = [['Report', d.title], ['Organization', d.organization], ['Section', d.team ?? ''], ['Period', d.period],
     ['Total', String(d.summary.total)], ['Completed', String(d.summary.completed)],
     ['In progress', String(d.summary.in_progress)], ['Pending', String(d.summary.pending)], []];
   const body = [...meta, HEAD, ...rows(d.summary)];
@@ -29,7 +29,7 @@ export async function exportXlsx(d: ReportDoc) {
   const ExcelJS = (await import('exceljs')).default;
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Summary');
-  ws.addRows([[d.title.toUpperCase()], ['Organization', d.organization], ['Team', d.team ?? ''], ['Period', d.period], [],
+  ws.addRows([[d.title.toUpperCase()], ['Organization', d.organization], ['Section', d.team ?? ''], ['Period', d.period], [],
     ['Total tasks', d.summary.total], ['Completed', d.summary.completed], ['In progress', d.summary.in_progress],
     ['Pending', d.summary.pending], ['Completion rate %', d.summary.completion_rate], [], ['Accomplishments'], [d.narrative]]);
   ws.getCell('A1').font = { bold: true, size: 14 };
@@ -54,7 +54,7 @@ export async function exportPdf(d: ReportDoc) {
   doc.setFontSize(10).setTextColor(100).text('PROJECT-X', 14, y);
   doc.setFontSize(16).setTextColor(20).text(d.title.toUpperCase(), 14, (y += 8));
   doc.setFontSize(10).setTextColor(60);
-  [['Organization', d.organization], d.division ? ['Division', d.division] : null, d.team ? ['Team', d.team] : null,
+  [['Organization', d.organization], d.division ? ['Division', d.division] : null, d.team ? ['Section', d.team] : null,
     d.subject ? ['Employee', d.subject] : null, ['Reporting period', d.period]]
     .filter((x): x is string[] => !!x).forEach(([k, v]) => doc.text(`${k}: ${v}`, 14, (y += 6)));
   const block = (label: string, s: ReportDoc['summary'], narrative: string) => {

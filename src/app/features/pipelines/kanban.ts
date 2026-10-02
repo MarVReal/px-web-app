@@ -16,6 +16,10 @@ import { TaskDialog } from '../tasks/task-dialog';
 
 type Field = 'priority' | 'category' | 'tags';
 
+interface DraftStage { id: string | null; name: string; kind: StageKind; }
+const toDraft = (s: Stage): DraftStage => ({ id: s.id, name: s.name, kind: s.kind });
+const KIND_LABEL: Record<StageKind, string> = { backlog: 'Backlog', active: 'Active', review: 'Review', done: 'Done' };
+
 @Component({
   selector: 'px-kanban',
   imports: [CdkDropListGroup, CdkDropList, CdkDrag, TaskCardView, TaskDialog, RouterLink, Modal],
@@ -32,7 +36,7 @@ type Field = 'priority' | 'category' | 'tags';
               @if (menu()) {
                 <div class="menu-backdrop" (click)="menu.set(false)"></div>
                 <div class="menu" role="menu">
-                  <button role="menuitem" (click)="menu.set(false); stageModal.set(true)">✎ Edit stages</button>
+                  <button role="menuitem" (click)="menu.set(false); openStages()">✎ Edit stages</button>
                   <a role="menuitem" routerLink="/labels" [queryParams]="{ pipeline: pipeline()?.id }" (click)="menu.set(false)">⚑ Categories &amp; tags</a>
                   <a role="menuitem" routerLink="/card-designer" [queryParams]="{ pipeline: pipeline()?.id }" (click)="menu.set(false)">▦ Card designer</a>
                   @if (canDelete()) {
@@ -98,27 +102,28 @@ type Field = 'priority' | 'category' | 'tags';
     }
 
     @if (stageModal()) {
-      <px-modal title="Edit stages" (closed)="stageModal.set(false)">
+      <px-modal title="Edit stages" (closed)="closeStages()">
         <div class="modal-body stack">
-          @for (s of stages(); track s.id; let i = $index) {
+          @for (s of draft(); track $index; let i = $index) {
             <div class="row">
-              <button class="btn sm ghost" [disabled]="i === 0" (click)="move(i, -1)" title="Move left">↑</button>
-              <button class="btn sm ghost" [disabled]="i === stages().length - 1" (click)="move(i, 1)" title="Move right">↓</button>
-              <input [value]="s.name" (change)="rename(s, $any($event.target).value)" maxlength="60" />
-              <select style="width: 150px" [value]="s.kind" (change)="setKind(s, $any($event.target).value)">
+              <button class="btn sm ghost" [disabled]="i === 0" (click)="moveDraft(i, -1)" title="Move up">↑</button>
+              <button class="btn sm ghost" [disabled]="i === draft().length - 1" (click)="moveDraft(i, 1)" title="Move down">↓</button>
+              <input [value]="s.name" (input)="renameDraft(i, $any($event.target).value)" maxlength="60" aria-label="Stage name" />
+              <select style="width: 150px" [value]="s.kind" (change)="kindDraft(i, $any($event.target).value)" aria-label="Stage type">
                 <option value="backlog">Backlog</option><option value="active">Active</option><option value="review">Review</option><option value="done">Done</option></select>
-              <button class="btn sm danger" (click)="removeStage(s)" title="Delete stage">🗑</button>
+              <button class="btn sm danger" (click)="removeDraft(i)" title="Remove stage">🗑</button>
             </div>
           }
           <div class="row" style="border-top: 1px solid var(--border); padding-top: 12px">
-            <input placeholder="New stage name" [value]="newStage()" (input)="newStage.set($any($event.target).value)" (keydown.enter)="addStage()" maxlength="60" />
+            <input placeholder="New stage name" [value]="newStage()" (input)="newStage.set($any($event.target).value)" (keydown.enter)="addDraft()" maxlength="60" />
             <select style="width: 150px" [value]="newKind()" (change)="newKind.set($any($event.target).value)">
               <option value="active">Active</option><option value="backlog">Backlog</option><option value="review">Review</option><option value="done">Done</option></select>
-            <button class="btn primary" (click)="addStage()" [disabled]="!newStage().trim()">Add</button>
+            <button class="btn" (click)="addDraft()" [disabled]="!newStage().trim()">Add</button>
           </div>
-          <p class="muted small">"Done" stages mark tasks as completed (used by reports). Stages with tasks can't be deleted.</p>
+          <p class="muted small">"Done" stages mark tasks as completed (used by reports). Stages with tasks can't be removed. Nothing changes until you save.</p>
         </div>
-        <div class="modal-foot"><button class="btn" (click)="stageModal.set(false)">Close</button></div>
+        <div class="modal-foot"><button class="btn" (click)="closeStages()">Cancel</button>
+          <button class="btn primary" (click)="saveStages()" [disabled]="!stageDirty() || !stagesValid() || stageBusy()">{{ stageBusy() ? 'Saving…' : 'Save changes' }}</button></div>
       </px-modal>
     }`,
   styles: `
@@ -150,7 +155,7 @@ type Field = 'priority' | 'category' | 'tags';
     /* position: fixed so the scrolling board and columns can never clip it; the place is set from the clicked chip. */
     .pop { position: fixed; z-index: 60; background: var(--surface); border: 1px solid var(--border);
       border-radius: 10px; box-shadow: var(--shadow-lg); padding: 6px; display: flex; flex-direction: column; gap: 2px; cursor: default; overflow: auto; }
-    .opt { text-align: left; border: 0; background: none; padding: 5px 8px; border-radius: 6px; font: inherit; cursor: pointer; &:hover { background: var(--surface-2); } &.on { background: var(--primary-50); font-weight: 600; } }
+    .opt { text-align: left; border: 0; background: none; padding: 5px 8px; border-radius: 6px; font: inherit; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; cursor: pointer; &:hover { background: var(--surface-2); } &.on { background: var(--primary-50); font-weight: 600; } }
     .pad { padding: 4px 8px; }
     .drop-hint { text-align: center; padding: 18px 0; border: 1px dashed #c4cad4; border-radius: 10px; }`,
 })
@@ -175,6 +180,10 @@ export class Kanban implements OnInit {
   stageModal = signal(false);
   menu = signal(false);
   newStage = signal(''); newKind = signal<StageKind>('active');
+  /** The stage editor works on a draft; nothing is saved until the person confirms the summary of changes. */
+  draft = signal<DraftStage[]>([]); stageBusy = signal(false);
+  stageDirty = computed(() => JSON.stringify(this.draft()) !== JSON.stringify(this.stages().map(toDraft)));
+  stagesValid = computed(() => this.draft().length > 0 && this.draft().every((d) => d.name.trim()));
   fPriority = signal(''); fAssignee = signal(''); fText = signal('');
   priorities = PRIORITIES; label = priorityLabel; bg = labelBg; fg = labelFg;
 
@@ -182,8 +191,8 @@ export class Kanban implements OnInit {
   canManage = computed(() => this.auth.isAdmin() || this.members().some((m) => m.user_id === this.auth.userId() && m.is_head));
   /** Only org admins may delete a pipeline (mirrors the pipelines_delete RLS policy). */
   canDelete = computed(() => this.auth.isAdmin());
-  /** Mirrors the RLS rule: managers, the creator, or an assignee may edit. */
-  canEdit = (t: Task) => this.canManage() || t.created_by === this.auth.userId() || !!t.assignees?.some((a) => a.user_id === this.auth.userId());
+  /** Priority, category and tags are task details, which only managers (Admin / Section Head) can change. */
+  canEdit = (_t: Task) => this.canManage();
   overdue = (t: Task) => isOverdue(t.due_date, t.completed_at);
   hasTag = (t: Task, id: string) => t.tags.some((g) => g.id === id);
 
@@ -281,33 +290,72 @@ export class Kanban implements OnInit {
   openNew(stage?: string) { this.dialog.set({ id: null, stage: stage ?? null }); }
   closeDialog(changed: boolean) { this.dialog.set(null); if (changed) this.reload(); }
 
-  // ----- stage editor -----
+  // ----- stage editor (draft, then confirm) -----
   private async reloadStages() { this.stages.set(await this.work.listStages(this.pipeline()!.id)); }
 
-  async addStage() {
+  openStages() { this.draft.set(this.stages().map(toDraft)); this.newStage.set(''); this.stageModal.set(true); }
+  async closeStages() {
+    if (this.stageDirty() && !(await this.confirm.ask('Discard your unsaved stage changes?', 'Discard'))) return;
+    this.stageModal.set(false);
+  }
+  addDraft() {
     const name = this.newStage().trim();
     if (!name) return;
+    this.draft.update((l) => [...l, { id: null, name, kind: this.newKind() }]); this.newStage.set('');
+  }
+  renameDraft(i: number, name: string) { this.draft.update((l) => l.map((d, j) => (j === i ? { ...d, name } : d))); }
+  kindDraft(i: number, kind: StageKind) { this.draft.update((l) => l.map((d, j) => (j === i ? { ...d, kind } : d))); }
+  moveDraft(i: number, dir: -1 | 1) {
+    this.draft.update((l) => { const n = [...l]; [n[i], n[i + dir]] = [n[i + dir], n[i]]; return n; });
+  }
+  removeDraft(i: number) {
+    const d = this.draft()[i];
+    if (d.id && this.tasks().some((t) => t.stage_id === d.id)) { this.toast.info('Move or delete the tasks in this stage first.'); return; }
+    this.draft.update((l) => l.filter((_, j) => j !== i));
+  }
+
+  /** Plain-language list of what saving would do, shown in the confirmation. */
+  private stageChanges(): string[] {
+    const orig = this.stages(), d = this.draft();
+    const lines: string[] = [];
+    const kind = (k: StageKind) => KIND_LABEL[k];
+    for (const o of orig) if (!d.some((x) => x.id === o.id)) lines.push(`Remove the stage "${o.name}"`);
+    for (const x of d) {
+      const o = x.id ? orig.find((s) => s.id === x.id) : undefined;
+      if (!o) { lines.push(`Add the stage "${x.name.trim()}" (${kind(x.kind)})`); continue; }
+      if (x.name.trim() !== o.name) lines.push(`Rename "${o.name}" to "${x.name.trim()}"`);
+      if (x.kind !== o.kind) lines.push(`Change the type of "${x.name.trim()}" from ${kind(o.kind)} to ${kind(x.kind)}`);
+    }
+    const kept = d.filter((x) => x.id).map((x) => x.id);
+    const before = orig.filter((o) => kept.includes(o.id)).map((o) => o.id);
+    if (kept.join() !== before.join()) lines.push('Change the order of the stages');
+    return lines;
+  }
+
+  async saveStages() {
+    const lines = this.stageChanges();
+    if (!lines.length) { this.stageModal.set(false); return; }
+    const ok = await this.confirm.ask(`Apply these changes to the stages of "${this.pipeline()?.name}"?\n\n${lines.map((l) => '• ' + l).join('\n')}`, 'Apply changes', 'primary');
+    if (!ok) return;
+    this.stageBusy.set(true);
     try {
-      await this.work.addStage(this.pipeline()!.id, name, this.newKind(), Math.max(-1, ...this.stages().map((s) => s.position)) + 1);
-      this.newStage.set(''); await this.reloadStages(); this.toast.success('Stage added');
-    } catch (e) { this.toast.error(e); }
-  }
-  async rename(s: Stage, name: string) {
-    name = name.trim();
-    if (!name || name === s.name) { await this.reloadStages(); return; }
-    try { await this.work.updateStage(s.id, { name }); await this.reloadStages(); } catch (e) { this.toast.error(e); }
-  }
-  async setKind(s: Stage, kind: StageKind) {
-    try { await this.work.updateStage(s.id, { kind }); await this.reloadStages(); } catch (e) { this.toast.error(e); }
-  }
-  async move(i: number, dir: -1 | 1) {
-    const list = this.stages(), a = list[i], b = list[i + dir];
-    if (!a || !b) return;
-    try {
-      await Promise.all([this.work.updateStage(a.id, { position: b.position }), this.work.updateStage(b.id, { position: a.position })]);
+      const pipeId = this.pipeline()!.id, orig = this.stages(), d = this.draft();
+      await Promise.all(orig.filter((o) => !d.some((x) => x.id === o.id)).map((o) => this.work.deleteStage(o.id)));
+      await Promise.all(d.flatMap((x, i) => {
+        const o = x.id ? orig.find((s) => s.id === x.id) : undefined;
+        if (!o) return [this.work.addStage(pipeId, x.name.trim(), x.kind, i)];
+        const patch: Partial<Stage> = {};
+        if (x.name.trim() !== o.name) patch.name = x.name.trim();
+        if (x.kind !== o.kind) patch.kind = x.kind;
+        if (i !== o.position) patch.position = i;
+        return Object.keys(patch).length ? [this.work.updateStage(o.id, patch)] : [];
+      }));
       await this.reloadStages();
-    } catch (e) { this.toast.error(e); }
+      this.stageModal.set(false); this.toast.success('Stages updated');
+    } catch (e) { this.toast.error(e); await this.reloadStages().catch(() => undefined); }
+    finally { this.stageBusy.set(false); }
   }
+
   async removePipeline() {
     const pipe = this.pipeline();
     if (!pipe || !this.canDelete()) return;
@@ -319,10 +367,5 @@ export class Kanban implements OnInit {
       this.toast.success('Pipeline deleted');
       await this.router.navigateByUrl('/pipelines');
     } catch (e) { this.toast.error(e); }
-  }
-  async removeStage(s: Stage) {
-    if (this.tasks().some((t) => t.stage_id === s.id)) { this.toast.info('Move or delete the tasks in this stage first.'); return; }
-    if (!(await this.confirm.ask(`Delete stage "${s.name}"?`, 'Delete'))) return;
-    try { await this.work.deleteStage(s.id); await this.reloadStages(); } catch (e) { this.toast.error(e); }
   }
 }

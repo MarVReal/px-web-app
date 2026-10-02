@@ -17,7 +17,7 @@ interface Bar { label: string; value: number; }
       <div class="page-head"><h1>{{ title() }}</h1><span class="spacer"></span>
         @if (!auth.role() || auth.role() !== 'staff') {
           @if (auth.isAdmin()) {
-            <select style="width:auto" (change)="fTeam.set($any($event.target).value)"><option value="">All teams</option>
+            <select style="width:auto" (change)="fTeam.set($any($event.target).value)"><option value="">All sections</option>
               @for (t of teams(); track t.id) { <option [value]="t.id">{{ t.name }}</option> }</select>
             <select style="width:auto" (change)="fUser.set($any($event.target).value)"><option value="">All users</option>
               @for (m of members(); track m.user_id) { <option [value]="m.user_id">{{ m.profile.full_name || m.profile.email }}</option> }</select>
@@ -32,7 +32,7 @@ interface Bar { label: string; value: number; }
 
       @if (loading()) { <div class="empty">Loading…</div> } @else {
         <div class="grid cols-4">
-          @if (auth.isAdmin()) { <div class="card stat"><div class="num">{{ teams().length }}</div><div class="lbl">Teams</div></div>
+          @if (auth.isAdmin()) { <div class="card stat"><div class="num">{{ teams().length }}</div><div class="lbl">Sections</div></div>
             <div class="card stat"><div class="num">{{ members().length }}</div><div class="lbl">Users</div></div>
             <div class="card stat"><div class="num">{{ pipes().length }}</div><div class="lbl">Active pipelines</div></div> }
           <div class="card stat"><div class="num">{{ s().total }}</div><div class="lbl">{{ auth.role() === 'staff' ? 'My tasks' : 'Total tasks' }}</div></div>
@@ -75,7 +75,7 @@ export class Dashboard implements OnInit {
   fTeam = signal(''); fPipe = signal(''); fUser = signal(''); fStatus = signal('');
   fMonth = signal(new Date().toISOString().slice(0, 7));
 
-  title = computed(() => ({ admin: 'Admin dashboard', section_head: 'Team dashboard', staff: 'My dashboard' } as Record<string, string>)[this.auth.role() ?? 'staff']);
+  title = computed(() => ({ admin: 'Admin dashboard', section_head: 'Section dashboard', staff: 'My dashboard' } as Record<string, string>)[this.auth.role() ?? 'staff']);
 
   private scoped = computed(() => {
     const me = this.auth.userId();
@@ -106,7 +106,7 @@ export class Dashboard implements OnInit {
       return [...m].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
     };
     const mk = (title: string, bars: Bar[]) => ({ title, bars: bars.slice(0, 8), max: Math.max(0, ...bars.map((b) => b.value)) });
-    const teamName = (id: string) => this.teams().find((t) => t.id === id)?.name ?? 'Team';
+    const teamName = (id: string) => this.teams().find((t) => t.id === id)?.name ?? 'Section';
     const person = (id: string) => { const p = this.members().find((m) => m.user_id === id)?.profile; return p?.full_name || p?.email || 'Me'; };
 
     const month = this.fMonth();
@@ -122,7 +122,7 @@ export class Dashboard implements OnInit {
       mk(`Completed in ${monthLabel(month)} (${doneThisMonth})`, trend),
     ];
     if (this.auth.role() !== 'staff') {
-      list.splice(1, 0, mk('Tasks by team', tally((r) => [teamName(r.team_id)])));
+      list.splice(1, 0, mk('Tasks by section', tally((r) => [teamName(r.team_id)])));
       list.push(mk('Workload by staff (open tasks)', (() => {
         const m = new Map<string, number>();
         rows.filter((r) => !r.completed_at).forEach((r) => r.assignees.forEach((a) => m.set(person(a.user_id), (m.get(person(a.user_id)) ?? 0) + 1)));
