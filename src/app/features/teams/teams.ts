@@ -26,7 +26,7 @@ import { Modal } from '../../shared/components/modal';
             <span class="spacer"></span>
             @if (auth.isAdmin()) {
               <button class="btn sm" (click)="openTeam(t)">Edit</button>
-              <button class="btn sm danger" (click)="archive(t)">Archive</button> }
+              <button class="btn sm danger" (click)="remove(t)">Delete</button> }
           </div>
           <div class="row wrap" style="margin-top: 12px">
             @for (m of membersOf(t.id); track m.id) {
@@ -116,9 +116,21 @@ export class Teams implements OnInit {
     try { await this.org.createDivision(this.dName().trim()); this.divModal.set(false); this.dName.set(''); await this.load(); }
     catch (e) { this.toast.error(e); }
   }
-  async archive(t: Team) {
-    if (!(await this.confirm.ask(`Archive section "${t.name}"? It will be hidden from lists.`, 'Archive'))) return;
-    try { await this.org.updateTeam(t.id, { is_archived: true }); await this.load(); } catch (e) { this.toast.error(e); }
+  /** Admin only. Deleting a section also deletes its pipelines, tasks and saved reports, so the confirmation spells that out. */
+  async remove(t: Team) {
+    if (!this.auth.isAdmin()) return;
+    let tasks: number | null = null;
+    try { tasks = (await this.work.listTasks({ teamId: t.id, limit: 1 })).total; } catch { /* the count is only for the warning */ }
+    const pipes = this.pipesOf(t.id).length, members = this.membersOf(t.id).length;
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const lines = [
+      pipes || tasks ? `• ${plural(pipes, 'pipeline')} and ${tasks === null ? 'all their tasks' : plural(tasks, 'task')}` : null,
+      '• its saved reports',
+      members ? `• its ${plural(members, 'membership')} (the people stay in the organization)` : null,
+    ].filter(Boolean);
+    const ok = await this.confirm.ask(`Permanently delete the section "${t.name}"?\n\nThis also deletes:\n${lines.join('\n')}\n\nThis cannot be undone.`, 'Delete section');
+    if (!ok) return;
+    try { await this.org.deleteTeam(t.id); await this.load(); this.toast.success('Section deleted'); } catch (e) { this.toast.error(e); }
   }
   async addMember(t: Team, sel: HTMLSelectElement) {
     const id = sel.value; sel.value = '';

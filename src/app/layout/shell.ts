@@ -38,7 +38,14 @@ function readCollapsed(): boolean {
   template: `
     <div class="layout" [class.open]="menu()" [class.collapsed]="collapsed()">
       <aside class="sidebar">
-        <div class="brand"><span class="brand-full">PROJECT<b>-X</b></span><span class="brand-mini">P<b>X</b></span></div>
+        <div class="top">
+          <button type="button" class="arrow" (click)="toggleCollapsed()" [attr.aria-pressed]="collapsed()"
+            [attr.title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'" [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              @if (collapsed()) { <path d="m9 18 6-6-6-6" /> } @else { <path d="m15 18-6-6 6-6" /> }</svg>
+          </button>
+          <div class="brand"><span class="brand-full">PROJECT<b>-X</b></span><span class="brand-mini">P<b>X</b></span></div>
+        </div>
         <div class="org small">{{ auth.organization()?.name }}</div>
         <nav>
           @for (n of items(); track n.label) {
@@ -47,9 +54,6 @@ function readCollapsed(): boolean {
             </a>
           }
         </nav>
-        <button type="button" class="collapse" (click)="toggleCollapsed()" [attr.aria-pressed]="collapsed()"
-          [attr.title]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'" [attr.aria-label]="collapsed() ? 'Expand sidebar' : 'Collapse sidebar'">
-          <span class="ico">{{ collapsed() ? '»' : '«' }}</span><span class="lbl">Collapse</span></button>
         <div class="me">
           <a class="me-link" routerLink="/account" title="Your profile" (click)="menu.set(false)">
             <px-avatar [name]="auth.profile()?.full_name || auth.profile()?.email || ''" [size]="32" />
@@ -92,8 +96,9 @@ function readCollapsed(): boolean {
       &:hover { background: #1d2939; } &.active { background: #1d2939; color: #fff; box-shadow: inset 3px 0 0 #84caff; } }
     .ico { width: 18px; text-align: center; flex: none; }
     .brand-mini { display: none; }
-    .collapse { display: flex; align-items: center; gap: 10px; padding: 8px 10px; margin-bottom: 6px; border: 0; border-radius: 8px; background: none; color: #98a2b3; font: inherit; cursor: pointer;
-      &:hover { background: #1d2939; color: #fff; } }
+    .top { display: flex; align-items: center; gap: 6px; }
+    .arrow { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px;
+      background: none; color: #98a2b3; cursor: pointer; &:hover { background: #1d2939; color: #fff; } }
     .me { display: flex; align-items: center; gap: 10px; padding: 10px; border-top: 1px solid #1d2939; .out { color: #d0d5dd; } }
     .me-link { display: flex; flex: 1; align-items: center; gap: 10px; min-width: 0; padding: 4px; margin: -4px; border-radius: 8px; color: inherit; &:hover { background: #1d2939; }
       .who { flex: 1; min-width: 0; color: #fff; line-height: 1.2; .small { color: #98a2b3; } } }
@@ -109,12 +114,13 @@ function readCollapsed(): boolean {
       .collapsed .brand-full, .collapsed .org, .collapsed .lbl, .collapsed .who, .collapsed .out { display: none; }
       .collapsed .brand-mini { display: block; text-align: center; }
       .collapsed .brand { padding: 4px 0; }
-      .collapsed nav a, .collapsed .collapse { justify-content: center; padding: 10px 0; }
+      .collapsed nav a { justify-content: center; padding: 10px 0; }
+      .collapsed .top { flex-direction: column; gap: 8px; }
       .collapsed .me { flex-direction: column; padding: 10px 0; border-top: 1px solid #1d2939; }
       .collapsed .me-link { flex: none; justify-content: center; }
     }
     @media (max-width: 860px) {
-      .collapse { display: none; }
+      .arrow { display: none; }
       .layout { grid-template-columns: 1fr; }
       .sidebar { position: fixed; left: -260px; width: 240px; z-index: 50; transition: left .2s; }
       .layout.open .sidebar { left: 0; } .burger { display: inline-flex; } header { padding: 10px 14px; }
