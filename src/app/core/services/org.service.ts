@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthService } from '../auth/auth.service';
-import { Division, Invitation, Member, Organization, Role, Team, TeamMember } from '../models/models';
+import { Division, Invitation, Member, MyInvitation, Organization, Role, Team, TeamMember } from '../models/models';
 import { SupabaseService, unwrap } from './supabase.service';
 
 /** Organization, divisions, teams, members and invitations. */
@@ -75,6 +75,10 @@ export class OrgService {
       .insert({ ...i, email: i.email.trim().toLowerCase(), organization_id: this.auth.orgId() }).select().single()) as Invitation;
   }
   async revokeInvitation(id: string) { unwrap(await this.sb.from('invitations').update({ status: 'revoked' }).eq('id', id)); }
+  /** Pending invitations addressed to the signed-in user's email (used by onboarding). */
+  async myPendingInvitations(): Promise<MyInvitation[]> {
+    return (unwrap(await this.sb.rpc('my_pending_invitations')) as MyInvitation[] | null) ?? [];
+  }
   async previewInvitation(token: string) {
     return unwrap(await this.sb.rpc('get_invitation_preview', { p_token: token })) as
       { email: string; role: Role; organization_name: string; team_name: string | null; valid: boolean } | null;
